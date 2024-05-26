@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "cwd": "${workspaceFolder}",
+      "name": "Launch",
+      "program": "${workspaceFolder}/build/clang_debug/MYPROJ",
+      "request": "launch",
+      "stopAtEntry": false,
+      "type": "cppdbg",
+      "preLaunchTask": "default_build",
+      "linux": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb"
+      },
+      "osx": {
+        "MIMode": "lldb",
+        "miDebuggerPath": "/usr/local/bin/lldb-mi"
+      },
+      "windows": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+      },
+      "setupCommands": [
+        {
+          "text": "-enable-pretty-printing",
+          "description": "enable pretty printing",
+          "ignoreFailures": false
+        }
+      ]
+    },
+    {
+      "cwd": "${workspaceFolder}",
+      "name": "Launch",
+      "program": "${workspaceFolder}/build/clang_debug/MYPROJ",
+      "request": "launch",
+      "stopAtEntry": false,
+      "type": "gdb",
+      "setupCommands": [
+        {
+          "text": "-enable-pretty-printing",
+          "description": "enable pretty printing",
+          "ignoreFailures": false
+        }
+      ]
+    },
+    {
+      "cwd": "${workspaceFolder}",
+      "name": "Launch",
+      "program": "${workspaceFolder}/build/clang_debug/MYPROJ",
+      "request": "launch",
+      "stopAtEntry": false,
+      "type": "lldb"
+    },
+    {
+      "cwd": "${workspaceFolder}",
+      "name": "Launch",
+      "program": "${workspaceFolder}/build/clang_debug/MYPROJ",
+      "request": "launch",
+      "stopAtEntry": false,
+      "type": "codelldb"
+    },
+    {
+      "cwd": "${workspaceFolder}",
+      "name": "Launch",
+      "program": "${file}",
+      "request": "launch",
+      "type": "python"
+    }
+  ]
+}
