@@ -43,3 +43,5 @@ endfunction()
 #   add_unit_test(gb_Bus ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
 #   add_unit_test(gb_CPU ${PROJECT_SOURCE_DIR}/src/gb/CPU.cpp
               # ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
+
+add_unit_test(smoke)

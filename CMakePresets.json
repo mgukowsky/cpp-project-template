@@ -58,7 +58,7 @@
       },
       "execution": {
         "jobs": 16,
-        "noTestsAction": "ignore",
+        "noTestsAction": "error",
         "repeat": {
           "count": 3,
           "mode": "until-fail"
