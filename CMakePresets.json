@@ -21,7 +21,7 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": true,
-        "CMAKE_LINKER": "ld"
+        "CMAKE_LINKER_TYPE": "SYSTEM"
       }
     },
     {
@@ -32,7 +32,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_LINKER": "ld.lld"
+        "CMAKE_LINKER_TYPE": "LLD"
       }
     }
   ],
