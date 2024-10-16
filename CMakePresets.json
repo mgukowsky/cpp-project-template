@@ -12,6 +12,7 @@
       "description": "Debug build using the GCC toolchain",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
+      "installDir": "${sourceDir}/install/${presetName}",
       "architecture": {
         "value": "x64",
         "strategy": "external"
@@ -34,6 +35,17 @@
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_LINKER_TYPE": "LLD"
       }
+    },
+    {
+      "name": "msvc_debug",
+      "inherits": "gcc_debug",
+      "displayName": "MSVC Debug",
+      "description": "Debug build using the MSVC toolchain",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_LINKER_TYPE": "MSVC"
+      }
     }
   ],
   "buildPresets": [
@@ -46,6 +58,11 @@
       "name": "clang_debug",
       "inherits": "gcc_debug",
       "configurePreset": "clang_debug"
+    },
+    {
+      "name": "msvc_debug",
+      "inherits": "gcc_debug",
+      "configurePreset": "msvc_debug"
     }
   ],
   "testPresets": [
@@ -71,6 +88,11 @@
       "name": "clang_debug",
       "inherits": "gcc_debug",
       "configurePreset": "clang_debug"
+    },
+    {
+      "name": "msvc_debug",
+      "inherits": "gcc_debug",
+      "configurePreset": "msvc_debug"
     }
   ],
   "workflowPresets": [
@@ -105,6 +127,23 @@
         {
           "type": "test",
           "name": "clang_debug"
+        }
+      ]
+    },
+    {
+      "name": "msvc_debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "msvc_debug"
+        },
+        {
+          "type": "build",
+          "name": "msvc_debug"
+        },
+        {
+          "type": "test",
+          "name": "msvc_debug"
         }
       ]
     }
