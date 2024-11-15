@@ -45,3 +45,4 @@ endfunction()
               # ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
 
 add_unit_test(smoke)
+add_unit_test(TypeHash)
