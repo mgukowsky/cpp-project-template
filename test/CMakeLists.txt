@@ -46,4 +46,5 @@ endfunction()
 
 add_unit_test(smoke)
 add_unit_test(TypeHash)
+add_unit_test(TypeMap)
 add_unit_test(TypeString)
