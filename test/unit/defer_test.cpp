@@ -6,7 +6,7 @@ TEST(defer_test, deferTest) {
   int i = 3;
 
   {
-    mgfw::defer deferred_([&]() { ++i; });
+    const mgfw::defer deferred_([&]() { ++i; });
 
     EXPECT_EQ(3, i)
       << "A deferred function should not be executed until its container goes out of scope";

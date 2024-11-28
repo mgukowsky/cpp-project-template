@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <vector>
 
 class Klass { };
 
@@ -22,7 +23,7 @@ TEST(TypeString_test, getTypeStrings) {
   EXPECT_STREQ("Klass", std::string(TypeString<Klass>).c_str())
     << "TypeString<T> correctly generates a string with the name of T";
   EXPECT_STREQ("std::vector<const Klass>",
-               std::string(TypeString<const std::vector<const Klass>>).c_str())
+               std::string(TypeString<const std::vector<Klass>>).c_str())
     << "TypeString<T> correctly generates a string with the name of T";
 #endif
 }

@@ -25,7 +25,10 @@ struct LifetimeTracker {
 
   LifetimeTracker(const LifetimeTracker &) { ++numCopyCalls; }
 
-  LifetimeTracker &operator=(const LifetimeTracker &) {
+  LifetimeTracker &operator=(const LifetimeTracker &rhs) {
+    if(this != &rhs) {
+      // pass
+    }
     ++numCopyCalls;
     return *this;
   }
@@ -76,20 +79,20 @@ TEST_F(Injector_test, getAndCreate) {
 TEST_F(Injector_test, lifetimeTracker) {
   Injector inj;
 
-  LifetimeTracker &l = inj.get<LifetimeTracker>();
+  const auto &l = inj.get<LifetimeTracker>();
   EXPECT_EQ(1, LifetimeTracker::numCtorCalls);
   EXPECT_EQ(0, LifetimeTracker::numCopyCalls);
   EXPECT_EQ(1, LifetimeTracker::numMoveCalls);  // one move is needed to place the entry into the
                                                 // type container
 
   // No construction should be needed once the instance is cached
-  LifetimeTracker &l2 = inj.get<LifetimeTracker>();
+  const auto &l2 = inj.get<LifetimeTracker>();
   EXPECT_EQ(1, LifetimeTracker::numCtorCalls);
   EXPECT_EQ(0, LifetimeTracker::numCopyCalls);
   EXPECT_EQ(1, LifetimeTracker::numMoveCalls);
 
   // We use RVO throughout Injector::create, so only one ctor call should be made
-  LifetimeTracker l3 = inj.create<LifetimeTracker>();
+  const auto l3 = inj.create<LifetimeTracker>();
   EXPECT_EQ(2, LifetimeTracker::numCtorCalls);
   EXPECT_EQ(0, LifetimeTracker::numCopyCalls);
   EXPECT_EQ(1, LifetimeTracker::numMoveCalls);  // create doesn't require a move
@@ -99,10 +102,13 @@ TEST_F(Injector_test, simpleRecipe) {
   Injector inj;
 
   int i = 0;
+
+  constexpr int MAGIC = 42;
+
   inj.add_recipe<int>([&]([[maybe_unused]] Injector &inj) {
     ++i;
 
-    return 42;
+    return MAGIC;
   });
 
   EXPECT_EQ(0, i) << "Injector::add_recipe should not eagerly invoke the recipe";
@@ -110,7 +116,7 @@ TEST_F(Injector_test, simpleRecipe) {
   {
     const int &newInstance = inj.get<int>();
 
-    EXPECT_EQ(42, newInstance)
+    EXPECT_EQ(MAGIC, newInstance)
       << "The return value of a recipe should be used as the new instance of T";
 
     EXPECT_EQ(1, i) << "A recipe should be invoked when a new instance of T is requested";
@@ -145,7 +151,7 @@ TEST_F(Injector_test, simpleCtorRecipe) {
 
   inj.add_ctor_recipe<Klass, DepA &, DepB, DepC *>();
 
-  [[maybe_unused]] Klass k = inj.create<Klass>();
+  [[maybe_unused]] const auto k = inj.create<Klass>();
   EXPECT_EQ(1, DepA::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for references";
   EXPECT_EQ(1, DepB::instanceCounter)
@@ -153,7 +159,7 @@ TEST_F(Injector_test, simpleCtorRecipe) {
   EXPECT_EQ(1, DepC::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for pointers";
 
-  [[maybe_unused]] Klass &klassRef = inj.get<Klass>();
+  [[maybe_unused]] const auto &klassRef = inj.get<Klass>();
   EXPECT_EQ(1, DepA::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for references";
   EXPECT_EQ(2, DepB::instanceCounter)
@@ -161,7 +167,7 @@ TEST_F(Injector_test, simpleCtorRecipe) {
   EXPECT_EQ(1, DepC::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for pointers";
 
-  [[maybe_unused]] Klass &klassRef2 = inj.get<Klass>();
+  [[maybe_unused]] const auto &klassRef2 = inj.get<Klass>();
   EXPECT_EQ(1, DepA::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for references";
   EXPECT_EQ(2, DepB::instanceCounter)
@@ -169,7 +175,7 @@ TEST_F(Injector_test, simpleCtorRecipe) {
   EXPECT_EQ(1, DepC::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for pointers";
 
-  [[maybe_unused]] Klass k2 = inj.create<Klass>();
+  [[maybe_unused]] const auto k2 = inj.create<Klass>();
   EXPECT_EQ(1, DepA::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for references";
   EXPECT_EQ(3, DepB::instanceCounter)

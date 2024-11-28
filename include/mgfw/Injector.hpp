@@ -12,6 +12,7 @@
 #include <set>
 #include <stdexcept>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace mgfw {
@@ -76,8 +77,9 @@ public:
       // TODO: log that overriding
     }
 
-    recipeMap_.emplace(hsh,
-                       std::make_any<Recipe_t<T>>([recipe](Injector &inj) { return recipe(inj); }));
+    recipeMap_.emplace(hsh, std::make_any<Recipe_t<T>>([&](Injector &inj) {
+                         return std::forward<RecipeFn_t>(recipe)(inj);
+                       }));
   }
 
   template<typename RawImpl_t,
@@ -172,7 +174,7 @@ private:
     }
 
     typeHashStack_.insert(hsh);
-    mgfw::defer deferred([&] { typeHashStack_.erase(hsh); });
+    const mgfw::defer deferred([&] { typeHashStack_.erase(hsh); });
 
     // If we're not calling with create(), then we're creating the instance being placed in the type
     // map, so record when it was instantiated.

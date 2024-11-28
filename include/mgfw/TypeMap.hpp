@@ -15,12 +15,16 @@ class TypeContainerBase {
 public:
   explicit TypeContainerBase(const mgfw::Hash_t hsh) : hsh_(hsh) { }
 
-  virtual ~TypeContainerBase() = default;
+  virtual ~TypeContainerBase()                            = default;
+  TypeContainerBase(const TypeContainerBase &)            = default;
+  TypeContainerBase &operator=(const TypeContainerBase &) = default;
+  TypeContainerBase(TypeContainerBase &&)                 = default;
+  TypeContainerBase &operator=(TypeContainerBase &&)      = default;
 
   /**
    * Return the TypeHash of the contained instance; used for a degree of type safety.
    */
-  inline mgfw::Hash_t identity() const noexcept { return hsh_; }
+  mgfw::Hash_t identity() const noexcept { return hsh_; }
 
 protected:
   mgfw::Hash_t hsh_;
@@ -31,16 +35,20 @@ protected:
 template<typename T>
 class TypeContainer : public TypeContainerBase {
 public:
-  ~TypeContainer() override = default;
-
-  TypeContainer(T &&instance)
+  explicit TypeContainer(T &&instance)
   requires std::move_constructible<T>
     : TypeContainerBase(mgfw::TypeHash<T>), instance_(std::move(instance)) { }
 
   template<typename... Args>
   requires std::constructible_from<T, Args...>
-  TypeContainer(Args &&...args)
+  explicit TypeContainer(Args &&...args)
     : TypeContainerBase(mgfw::TypeHash<T>), instance_(std::forward<Args>(args)...) { }
+
+  ~TypeContainer() override                       = default;
+  TypeContainer(const TypeContainer &)            = default;
+  TypeContainer &operator=(const TypeContainer &) = default;
+  TypeContainer(TypeContainer &&)                 = default;
+  TypeContainer &operator=(TypeContainer &&)      = default;
 
   T &get() noexcept { return instance_; }
 

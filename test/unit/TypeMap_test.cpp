@@ -1,6 +1,10 @@
 #include "mgfw/TypeMap.hpp"
 
+#include "mgfw/TypeHash.hpp"
+
 #include <gtest/gtest.h>
+
+#include <stdexcept>
 
 namespace {
 
@@ -15,11 +19,11 @@ public:
   SimpleMock(SimpleMock &&)                 = delete;
   SimpleMock &operator=(SimpleMock &&)      = delete;
 
-  static int inline ctor_calls() noexcept { return ctorCalls_; }
+  static int ctor_calls() noexcept { return ctorCalls_; }
 
-  static inline int dtor_calls() noexcept { return dtorCalls_; }
+  static int dtor_calls() noexcept { return dtorCalls_; }
 
-  static inline void reset() noexcept { ctorCalls_ = dtorCalls_ = 0; }
+  static void reset() noexcept { ctorCalls_ = dtorCalls_ = 0; }
 
 private:
   inline static int ctorCalls_ = 0;
