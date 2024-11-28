@@ -22,8 +22,7 @@ TEST(TypeString_test, getTypeStrings) {
 #if defined(__clang__) || defined(__GNUC__)
   EXPECT_STREQ("Klass", std::string(TypeString<Klass>).c_str())
     << "TypeString<T> correctly generates a string with the name of T";
-  EXPECT_STREQ("std::vector<const Klass>",
-               std::string(TypeString<const std::vector<Klass>>).c_str())
+  EXPECT_STREQ("std::vector<Klass>", std::string(TypeString<const std::vector<Klass>>).c_str())
     << "TypeString<T> correctly generates a string with the name of T";
 #endif
 }

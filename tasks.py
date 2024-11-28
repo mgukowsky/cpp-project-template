@@ -1,6 +1,7 @@
-from invoke import task, Context
 import os
 import platform
+
+from invoke import Context, task
 
 
 def default_toolchain():
@@ -29,6 +30,15 @@ def build(c: Context, preset: str = default_toolchain()):
         pty=True,
     )
     link_ccdb(preset)
+
+
+@task
+def lint(c: Context, fix: bool = False):
+    c.run(
+        f"run-clang-tidy '-header-filter=include/mgfw' -use-color -j{os.cpu_count()} {"-fix -format" if fix else ""}",
+        echo=True,
+        pty=True,
+    )
 
 
 @task(default=True)
