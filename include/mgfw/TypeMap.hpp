@@ -10,41 +10,43 @@
 
 namespace mgfw {
 
-namespace detail_ {
+// Container providing type erasure
+class TypeContainerBase {
+public:
+  explicit TypeContainerBase(const mgfw::Hash_t hsh) : hsh_(hsh) { }
 
-  // Container providing type erasure
-  class TypeContainerBase {
-  public:
-    explicit TypeContainerBase(const mgfw::Hash_t hsh) : hsh_(hsh) { }
+  virtual ~TypeContainerBase() = default;
 
-    virtual ~TypeContainerBase() = default;
+  /**
+   * Return the TypeHash of the contained instance; used for a degree of type safety.
+   */
+  inline mgfw::Hash_t identity() const noexcept { return hsh_; }
 
-    /**
-     * Return the TypeHash of the contained instance; used for a degree of type safety.
-     */
-    inline mgfw::Hash_t identity() const noexcept { return hsh_; }
+protected:
+  mgfw::Hash_t hsh_;
+};
 
-  protected:
-    mgfw::Hash_t hsh_;
-  };
+// Container for arbitrary types.
+// We use this instead of std::any to support non-copyable types.
+template<typename T>
+class TypeContainer : public TypeContainerBase {
+public:
+  ~TypeContainer() override = default;
 
-  // Container for arbitrary types.
-  // We use this instead of std::any to support non-copyable types.
-  template<typename T>
-  class TypeContainer : public TypeContainerBase {
-  public:
-    template<typename... Args>
-    requires std::constructible_from<T, Args...>
-    TypeContainer(Args &&...args)
-      : TypeContainerBase(mgfw::TypeHash<T>), instance_(std::forward<Args>(args)...) { }
+  TypeContainer(T &&instance)
+  requires std::move_constructible<T>
+    : TypeContainerBase(mgfw::TypeHash<T>), instance_(std::move(instance)) { }
 
-    T &get() noexcept { return instance_; }
+  template<typename... Args>
+  requires std::constructible_from<T, Args...>
+  TypeContainer(Args &&...args)
+    : TypeContainerBase(mgfw::TypeHash<T>), instance_(std::forward<Args>(args)...) { }
 
-  private:
-    T instance_;
-  };
+  T &get() noexcept { return instance_; }
 
-}  // namespace detail_
+private:
+  T instance_;
+};
 
 /**
  * Maps a TypeHash to an instance of the corresponding type.
@@ -67,13 +69,26 @@ public:
      * container to create.
      */
 
-    if(contains(TypeHash<T>)) {
+    constexpr auto hsh = TypeHash<T>;
+
+    if(contains(hsh)) {
+      // TODO: throw?
       return true;
     }
 
-    map_.emplace(mgfw::TypeHash<T>,
-                 std::make_unique<detail_::TypeContainer<T>>(std::forward<Args>(args)...));
+    map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<Args>(args)...));
     return false;
+  }
+
+  template<typename T>
+  void insert(T &&val) {
+    constexpr auto hsh = TypeHash<T>;
+
+    if(hsh) {
+      // TODO: throw?
+    }
+
+    map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<T>(val)));
   }
 
   void erase(const mgfw::Hash_t hsh) { map_.erase(hsh); }
@@ -90,11 +105,11 @@ public:
     auto pContainerBase = map_.at(hsh).get();
     assert(pContainerBase->identity() == hsh || "get_ref<T> has an entry with a typehash != T");
 
-    return reinterpret_cast<detail_::TypeContainer<T> *>(pContainerBase)->get();
+    return reinterpret_cast<TypeContainer<T> *>(pContainerBase)->get();
   }
 
 private:
-  std::map<mgfw::Hash_t, std::unique_ptr<detail_::TypeContainerBase>> map_;
+  std::map<mgfw::Hash_t, std::unique_ptr<TypeContainerBase>> map_;
 };
 
 }  // namespace mgfw

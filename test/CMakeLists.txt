@@ -44,7 +44,8 @@ endfunction()
 #   add_unit_test(gb_CPU ${PROJECT_SOURCE_DIR}/src/gb/CPU.cpp
               # ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
 
-add_unit_test(smoke)
+add_unit_test(defer)
+add_unit_test(Injector ${PROJECT_SOURCE_DIR}/src/mgfw/Injector.cpp)
 add_unit_test(TypeHash)
 add_unit_test(TypeMap)
 add_unit_test(TypeString)
