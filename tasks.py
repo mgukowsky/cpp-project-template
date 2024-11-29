@@ -37,15 +37,11 @@ def build(c: Context, preset: str = default_toolchain()):
 
 @task
 def lint(c: Context, fix: bool = False):
-    # strip out files we don't want to analyze
-    FILES_TO_IGNORE = ["gmock-all.cc", "gmock_main.cc", "gtest-all.cc", "gtest_main.cc"]
     with open("compile_commands.json", "r") as f:
         ccjson = json.load(f)
 
-    def filter_cc(cc):
-        return not any(ignored in json.dumps(cc) for ignored in FILES_TO_IGNORE)
-
-    ccs = [cc for cc in ccjson if filter_cc(cc)]
+    # strip out 3rd-party files we don't want to analyze
+    ccs = [cc for cc in ccjson if "/_deps/" not in cc["file"]]
 
     outdir = tempfile.mkdtemp()
     with open(f"{outdir}/compile_commands.json", "w") as outf:
