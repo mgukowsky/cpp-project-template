@@ -1,3 +1,9 @@
+# Sources:
+#  - https://github.com/TheLartians/ModernCppStarter
+#  - https://github.com/StableCoder/cmake-scripts
+#  - https://github.com/cpp-best-practices/cmake_template/tree/main
+#  - https://github.com/cpp-best-practices/cppbestpractices/blob/master/02-Use_the_Tools_Available.md#compilers
+
 # Standard CMake modules
 include(CheckIPOSupported)
 include(CheckPIESupported)
@@ -75,6 +81,13 @@ function(config_for_unix target_name)
       $<$<CXX_COMPILER_ID:Clang>:-fcolor-diagnostics>
       $<$<CXX_COMPILER_ID:Clang>:-Wimplicit-fallthrough>
       $<$<CXX_COMPILER_ID:Clang>:-Wno-string-conversion>
+      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>
+  )
+
+  target_link_options(
+    ${target_name}
+    PUBLIC
+      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>
   )
 
 

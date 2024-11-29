@@ -13,7 +13,6 @@
 #include <set>
 #include <stdexcept>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 namespace mgfw {
@@ -69,6 +68,9 @@ public:
     add_recipe<T>(recipe);
   }
 
+  // We're using a universal reference but intentionally not using std::forward, since we want to
+  // copy the recipe into the lambda that will be used later
+  // NOLINTBEGIN
   template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
   requires std::is_invocable_r_v<T, RecipeFn_t, Injector &>
   void add_recipe(RecipeFn_t &&recipe) {
@@ -78,10 +80,11 @@ public:
       // TODO: log that overriding
     }
 
-    recipeMap_.emplace(hsh, std::make_any<Recipe_t<T>>([&](Injector &inj) {
-                         return std::forward<RecipeFn_t>(recipe)(inj);
-                       }));
+    recipeMap_.emplace(hsh,
+                       std::make_any<Recipe_t<T>>([recipe](Injector &inj) { return recipe(inj); }));
   }
+
+  // NOLINTEND
 
   template<typename RawImpl_t,
            typename RawIface_t,
