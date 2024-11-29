@@ -79,14 +79,14 @@ TEST_F(Injector_test, getAndCreate) {
 TEST_F(Injector_test, lifetimeTracker) {
   Injector inj;
 
-  const auto &l = inj.get<LifetimeTracker>();
+  [[maybe_unused]] const auto &l = inj.get<LifetimeTracker>();
   EXPECT_EQ(1, LifetimeTracker::numCtorCalls);
   EXPECT_EQ(0, LifetimeTracker::numCopyCalls);
   EXPECT_EQ(1, LifetimeTracker::numMoveCalls);  // one move is needed to place the entry into the
                                                 // type container
 
   // No construction should be needed once the instance is cached
-  const auto &l2 = inj.get<LifetimeTracker>();
+  [[maybe_unused]] const auto &l2 = inj.get<LifetimeTracker>();
   EXPECT_EQ(1, LifetimeTracker::numCtorCalls);
   EXPECT_EQ(0, LifetimeTracker::numCopyCalls);
   EXPECT_EQ(1, LifetimeTracker::numMoveCalls);
@@ -105,7 +105,7 @@ TEST_F(Injector_test, simpleRecipe) {
 
   constexpr int MAGIC = 42;
 
-  inj.add_recipe<int>([&]([[maybe_unused]] Injector &inj) {
+  inj.add_recipe<int>([&]([[maybe_unused]] Injector &injArg) {
     ++i;
 
     return MAGIC;
@@ -131,8 +131,8 @@ TEST_F(Injector_test, simpleRecipe) {
   }
 
   {
-    const int &newInt  = inj.create<int>();
-    const int &newInt2 = inj.create<int>();
+    [[maybe_unused]] const int &newInt  = inj.create<int>();
+    [[maybe_unused]] const int &newInt2 = inj.create<int>();
 
     EXPECT_EQ(3, i) << "Injector::create should invoke a recipe each time it is called";
   }
