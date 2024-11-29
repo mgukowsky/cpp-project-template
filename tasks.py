@@ -47,13 +47,14 @@ def lint(c: Context, fix: bool = False):
     with open(f"{outdir}/compile_commands.json", "w") as outf:
         json.dump(ccs, outf)
 
-    c.run(
-        f"run-clang-tidy '-header-filter=include/mgfw' -use-color -j{os.cpu_count()} -p {outdir} {"-fix -format" if fix else ""}",
-        echo=True,
-        pty=True,
-    )
-
-    shutil.rmtree(outdir, ignore_errors=True)
+    try:
+        c.run(
+            f"run-clang-tidy '-header-filter=include/mgfw' -use-color -j{os.cpu_count()} -p {outdir} {"-fix -format" if fix else ""}",
+            echo=True,
+            pty=True,
+        )
+    finally:
+        shutil.rmtree(outdir, ignore_errors=True)
 
 
 @task(default=True)

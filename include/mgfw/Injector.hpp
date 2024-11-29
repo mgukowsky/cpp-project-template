@@ -4,6 +4,7 @@
 #include "mgfw/TypeMap.hpp"
 #include "mgfw/TypeString.hpp"
 #include "mgfw/defer.hpp"
+#include "mgfw/types.hpp"
 
 #include <any>
 #include <format>
@@ -124,7 +125,7 @@ private:
   /**
    * A tag for the type of dependency being requested.
    */
-  enum class DepType_t {
+  enum class DepType_t : U8 {
     /**
      * Return a reference to an existing instance of a dependency (or create one if one doesn't
      * exist).
