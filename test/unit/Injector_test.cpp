@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <string_view>
+
 using mgfw::Injector;
 
 namespace {
@@ -182,4 +184,106 @@ TEST_F(Injector_test, simpleCtorRecipe) {
     << "Injector::add_ctor_recipe should call Injector::create for values";
   EXPECT_EQ(1, DepC::instanceCounter)
     << "Injector::add_ctor_recipe should call Injector::get for pointers";
+}
+
+TEST_F(Injector_test, bind_impl) {
+  class Base {
+  public:
+    virtual std::string_view get_str() { return "BASE"; }
+
+    Base()                        = default;
+    Base(const Base &)            = default;
+    Base(Base &&)                 = default;
+    Base &operator=(const Base &) = default;
+    Base &operator=(Base &&)      = default;
+    virtual ~Base()               = default;
+  };
+
+  class Derived : public Base {
+  public:
+    std::string_view get_str() override { return "DERIVED"; }
+  };
+
+  Injector inj;
+  inj.bind_impl<Derived, Base>();
+
+  {
+    auto &base = inj.get<Base>();
+
+    EXPECT_EQ("DERIVED", base.get_str())
+      << "Injector::get<Base> should respect Injector::bind_impl recipes added for Base";
+
+    auto base2 = inj.create<Base>();
+    EXPECT_EQ("BASE", base2.get_str())
+      << "Injector::create<Base> should ignore Injector::bind_impl recipes added for Base";
+  }
+
+  {
+    int i = 0;
+    inj.add_recipe<Base>([&](Injector &) {
+      ++i;
+      return Base();
+    });
+
+    auto &base3 = inj.get<Base>();
+    EXPECT_EQ("DERIVED", base3.get_str())
+      << "If Injector::bind_impl<Base> has been invoked, then Injector::get<Base> should ignore a "
+         "recipe added by Injector::add_recipe<Base>";
+    EXPECT_EQ(0, i)
+      << "If Injector::bind_impl<Base> has been invoked, then Injector::get<Base> should ignore a "
+         "recipe added by Injector::add_recipe<Base>";
+  }
+}
+
+TEST_F(Injector_test, bind_impl_abstract) {
+  class Base {
+  public:
+    virtual std::string_view get_str() = 0;
+
+    Base()                        = default;
+    Base(const Base &)            = default;
+    Base(Base &&)                 = default;
+    Base &operator=(const Base &) = default;
+    Base &operator=(Base &&)      = default;
+    virtual ~Base()               = default;
+  };
+
+  class Derived : public Base {
+  public:
+    std::string_view get_str() override { return "DERIVED"; }
+  };
+
+  Injector inj;
+  inj.bind_impl<Derived, Base>();
+
+  {
+    auto &base = inj.get<Base>();
+
+    EXPECT_EQ("DERIVED", base.get_str()) << "Injector::get<AbstractBase> should respect "
+                                            "Injector::bind_impl recipes added for AbstractBase";
+
+    // N.B. that this won't compile b/c Base is an abstract type
+    // auto base2 = inj.create<Base>();
+    // EXPECT_EQ("BASE", base2.get_str())
+    //   << "Injector::create<Base> should ignore Injector::bind_impl recipes added for Base";
+  }
+
+  // ditto
+  // {
+  //   int i = 0;
+  //   inj.add_recipe<Base>([&](Injector &) {
+  //     ++i;
+  //     return Base();
+  //   });
+  //
+  //   auto &base3 = inj.get<Base>();
+  //   EXPECT_EQ("DERIVED", base3.get_str())
+  //     << "If Injector::bind_impl<Base> has been invoked, then Injector::get<Base> should ignore a
+  //     "
+  //        "recipe added by Injector::add_recipe<Base>";
+  //   EXPECT_EQ(0, i)
+  //     << "If Injector::bind_impl<Base> has been invoked, then Injector::get<Base> should ignore a
+  //     "
+  //        "recipe added by Injector::add_recipe<Base>";
+  // }
 }

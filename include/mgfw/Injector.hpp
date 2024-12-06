@@ -99,7 +99,9 @@ public:
     }
 
     ifaceRecipeMap_.emplace(
-      hsh, std::make_any<IfaceRecipe_t>([](Injector &injector) { return injector.get<Impl_t>(); }));
+      hsh, std::make_any<IfaceRecipe_t<Iface_t>>([](Injector &injector) -> Iface_t & {
+        return injector.get<Impl_t>();
+      }));
   }
 
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
@@ -111,17 +113,35 @@ public:
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
   T &get() {
     constexpr auto hsh = mgfw::TypeHash<T>;
-    if(!typeMap_.contains(hsh)) {
+
+    // We need to put this behind an if constexpr() path to prevent the compiler for generating code
+    // for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither of which
+    // would compile
+    if constexpr(std::is_abstract_v<T>) {
       if(ifaceRecipeMap_.contains(hsh)) {
-        return std::any_cast<IfaceRecipe_t<T>>(recipeMap_.at(hsh))(*this);
+        return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
       }
       else {
-        typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
+        throw std::runtime_error(
+          std::format("Could not create instance of type {} because it is abstract and there is "
+                      "no recipe for it. Perhaps use Injector::bind_impl<Impl, {}>()",
+                      mgfw::TypeString<T>,
+                      mgfw::TypeString<T>));
       }
     }
+    else {
+      if(!typeMap_.contains(hsh)) {
+        if(ifaceRecipeMap_.contains(hsh)) {
+          return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
+        }
+        else {
+          typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
+        }
+      }
 
-    // TODO: we are performing the lookup for <T> in the typemap twice
-    return typeMap_.get_ref<T>();
+      // TODO: we are performing the lookup for <T> in the typemap twice
+      return typeMap_.get_ref<T>();
+    }
   }
 
 private:
