@@ -1,8 +1,7 @@
-# Sources:
-#  - https://github.com/TheLartians/ModernCppStarter
-#  - https://github.com/StableCoder/cmake-scripts
-#  - https://github.com/cpp-best-practices/cmake_template/tree/main
-#  - https://github.com/cpp-best-practices/cppbestpractices/blob/master/02-Use_the_Tools_Available.md#compilers
+# Sources: - https://github.com/TheLartians/ModernCppStarter -
+# https://github.com/StableCoder/cmake-scripts -
+# https://github.com/cpp-best-practices/cmake_template/tree/main -
+# https://github.com/cpp-best-practices/cppbestpractices/blob/master/02-Use_the_Tools_Available.md#compilers
 
 # Standard CMake modules
 include(CheckIPOSupported)
@@ -23,28 +22,21 @@ function(configure_target target_name)
   # Best practice to check for PIE before enabling it
   check_pie_supported()
   if(CMAKE_CXX_LINK_PIE_SUPPORTED)
-    set_target_properties(
-      ${target_name}
-        PROPERTIES
-          POSITION_INDEPENDENT_CODE
-            TRUE
-    )
+    set_target_properties(${target_name} PROPERTIES POSITION_INDEPENDENT_CODE
+                                                    TRUE)
   endif()
 
   # Use IPO if Release and available
   if(CMAKE_BUILD_TYPE MATCHES Release)
     check_ipo_supported(RESULT is_ipo_supported)
     if(is_ipo_supported)
-      set_target_properties(
-        ${target_name}
-          PROPERTIES
-            INTERPROCEDURAL_OPTIMIZATION
-              TRUE
-      )
+      set_target_properties(${target_name}
+                            PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
   endif()
 
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES
+                                            "Clang")
     config_for_unix(${target_name})
   endif()
 endfunction()
@@ -53,7 +45,8 @@ function(config_for_unix target_name)
   target_compile_options(
     ${target_name}
     PUBLIC
-      # recommended per https://github.com/cpp-best-practices/cppbestpractices/blob/master/02-Use_the_Tools_Available.md#compilers
+      # recommended per
+      # https://github.com/cpp-best-practices/cppbestpractices/blob/master/02-Use_the_Tools_Available.md#compilers
       -pedantic
       -Wall
       -Wcast-align
@@ -81,15 +74,9 @@ function(config_for_unix target_name)
       $<$<CXX_COMPILER_ID:Clang>:-fcolor-diagnostics>
       $<$<CXX_COMPILER_ID:Clang>:-Wimplicit-fallthrough>
       $<$<CXX_COMPILER_ID:Clang>:-Wno-string-conversion>
-      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>
-  )
+      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>)
 
-  target_link_options(
-    ${target_name}
-    PUBLIC
-      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>
-  )
-
+  target_link_options(${target_name} PUBLIC
+                      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>)
 
 endfunction()
-
