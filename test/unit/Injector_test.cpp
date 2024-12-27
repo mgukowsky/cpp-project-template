@@ -287,3 +287,13 @@ TEST_F(Injector_test, bind_impl_abstract) {
   //        "recipe added by Injector::add_recipe<Base>";
   // }
 }
+
+TEST_F(Injector_test, get_injector_ref) {
+  Injector inj;
+  auto    &inj_ref = inj.get<Injector>();
+  EXPECT_EQ(&inj, &inj_ref)
+    << "Injector::get<Injector>() should return a reference to the Injector instance";
+
+  auto new_inj = inj.create<Injector>();
+  EXPECT_NE(&inj, &new_inj) << "Injector::create<Injector>() should create a new Injector instance";
+}

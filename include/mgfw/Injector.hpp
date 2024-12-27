@@ -33,11 +33,8 @@ public:
   using IfaceRecipe_t = std::function<T &(Injector &)>;
 
   /**
-   * The first thing that the Injector does upon construction is add itself to its typeMap_ as the
-   * entry for the Injector type. This allows for recipes that have a dependency on the Injector
-   * itself to return an instance of this class as that dependency. Also adds a specialized recipe
-   * to return a "child" Injector (i.e. a new Injector with pUpstream_ set to the called Injector
-   * instance) when creat() is invoked.
+   * Adds a specialized recipe to return a "child" Injector (i.e. a new Injector with pUpstream_ set
+   * to the called Injector instance when creat() is invoked.
    */
   Injector();
 
@@ -114,10 +111,14 @@ public:
   T &get() {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
+    // Asking for an instance of this class is an identity function.
+    if constexpr(hsh == TypeHash<Injector>) {
+      return *this;
+    }
     // We need to put this behind an if constexpr() path to prevent the compiler for generating code
     // for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither of which
     // would compile
-    if constexpr(std::is_abstract_v<T>) {
+    else if constexpr(std::is_abstract_v<T>) {
       if(ifaceRecipeMap_.contains(hsh)) {
         return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
       }
