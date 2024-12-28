@@ -1,6 +1,7 @@
 import json
 import os
 import platform
+import re
 import shutil
 import tempfile
 
@@ -64,6 +65,20 @@ def lint(c: Context, fix: bool = False, cppcheck: bool = False):
 
 
 @task(default=True)
-def workflow(c: Context, preset: str = default_toolchain()):
+def workflow(c: Context, preset: str = default_toolchain(), coverage=False):
     crun(c, f"cmake --workflow --preset {preset}")
     link_ccdb(preset)
+
+    if coverage:
+        original_dir = os.getcwd()
+        build_dir = f"build/{preset}"
+        os.chdir(build_dir)
+        coverage_file = "coverage.html"
+        crun(
+            c,
+            f"gcovr -e '_deps' --gcov-executable "
+            f"{'\"llvm-cov gcov\"' if re.match('clang', preset) else '\"gcov\"'} "
+            f"-r {original_dir} --html-nested {coverage_file} -j{os.cpu_count()}",
+        )
+        os.chdir(original_dir)
+        print(f"💡 Coverage report available in {build_dir}/{coverage_file} !")
