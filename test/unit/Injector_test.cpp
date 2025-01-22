@@ -290,10 +290,111 @@ TEST_F(Injector_test, bind_impl_abstract) {
 
 TEST_F(Injector_test, get_injector_ref) {
   Injector inj;
-  auto    &inj_ref = inj.get<Injector>();
-  EXPECT_EQ(&inj, &inj_ref)
+  auto    &injRef = inj.get<Injector>();
+  EXPECT_EQ(&inj, &injRef)
     << "Injector::get<Injector>() should return a reference to the Injector instance";
 
   auto new_inj = inj.create<Injector>();
   EXPECT_NE(&inj, &new_inj) << "Injector::create<Injector>() should create a new Injector instance";
+}
+
+TEST_F(Injector_test, throw_when_no_abstract_recipe) {
+  struct Iface {
+    Iface()                         = default;
+    Iface(const Iface &)            = default;
+    Iface(Iface &&)                 = delete;
+    Iface &operator=(const Iface &) = default;
+    Iface &operator=(Iface &&)      = delete;
+    virtual ~Iface()                = default;
+    virtual void virt()             = 0;
+  };
+
+  Injector inj;
+  EXPECT_THROW([[maybe_unused]] auto &ifaceRef = inj.get<Iface>(), std::runtime_error)
+    << "Injector::get should throw when requesting an abstract type that has no recipe, even if "
+       "that abstract type has a default constructor";
+}
+
+TEST_F(Injector_test, throw_on_dependency_cycle) {
+  struct A;
+  struct B;
+
+  struct A {
+    explicit A([[maybe_unused]] B &b) { };
+  };
+
+  struct B {
+    explicit B([[maybe_unused]] A &a) { };
+  };
+
+  Injector inj;
+  inj.add_ctor_recipe<A, B &>();
+  inj.add_ctor_recipe<B, A &>();
+
+  EXPECT_THROW([[maybe_unused]] auto &aRef = inj.get<A>(), std::runtime_error)
+    << "Injector::get should throw when a dependency cycle is detected";
+
+  EXPECT_THROW([[maybe_unused]] auto &bRef = inj.get<B>(), std::runtime_error)
+    << "Injector::get should throw when a dependency cycle is detected";
+}
+
+TEST_F(Injector_test, throw_on_nested_dependency_cycle) {
+  struct A;
+  struct B;
+  struct C;
+  struct D;
+  struct E;
+
+  struct A {
+    explicit A([[maybe_unused]] E &e) { };
+  };
+
+  struct B {
+    explicit B([[maybe_unused]] A &a) { };
+  };
+
+  struct C {
+    explicit C([[maybe_unused]] B &b) { };
+  };
+
+  struct D {
+    explicit D([[maybe_unused]] C &c) { };
+  };
+
+  struct E {
+    explicit E([[maybe_unused]] D &d) { };
+  };
+
+  Injector inj;
+  inj.add_ctor_recipe<A, E &>();
+  inj.add_ctor_recipe<B, A &>();
+  inj.add_ctor_recipe<C, B &>();
+  inj.add_ctor_recipe<D, C &>();
+  inj.add_ctor_recipe<E, D &>();
+
+  EXPECT_THROW([[maybe_unused]] auto &aRef = inj.get<A>(), std::runtime_error)
+    << "Injector::get should throw when a dependency cycle is detected, even when it is nested";
+
+  EXPECT_THROW([[maybe_unused]] auto &eRef = inj.get<E>(), std::runtime_error)
+    << "Injector::get should throw when a dependency cycle is detected, even when it is nested";
+}
+
+TEST_F(Injector_test, throw_when_no_recipe_and_not_default_constructible) {
+  struct Klass {
+    explicit Klass(int i) : n(i) { }
+
+    int n;
+  };
+
+  static_assert(!std::default_initializable<Klass>);
+
+  Injector inj;
+  EXPECT_THROW([[maybe_unused]] auto &klassRef = inj.get<Klass>(), std::runtime_error)
+    << "Injector::get should throw when a type that is not default constructible is requested, and "
+       "there is no recipe for it";
+
+  inj.add_ctor_recipe<Klass, int>();
+  EXPECT_NO_THROW([[maybe_unused]] auto &klassRef = inj.get<Klass>())
+    << "Injector::get should not throw when a type that is not default constructible is requested, "
+       "and there is a recipe for it";
 }
