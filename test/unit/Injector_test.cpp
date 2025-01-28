@@ -213,9 +213,8 @@ TEST_F(Injector_test, bind_impl) {
     EXPECT_EQ("DERIVED", base.get_str())
       << "Injector::get<Base> should respect Injector::bind_impl recipes added for Base";
 
-    auto base2 = inj.create<Base>();
-    EXPECT_EQ("BASE", base2.get_str())
-      << "Injector::create<Base> should ignore Injector::bind_impl recipes added for Base";
+    EXPECT_THROW(inj.create<Base>(), std::runtime_error)
+      << "Injector::create<Base> should throw if Injector::bind_impl added a recipe for Base";
   }
 
   {

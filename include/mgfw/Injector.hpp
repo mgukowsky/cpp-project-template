@@ -83,8 +83,10 @@ public:
       // TODO: log that overriding
     }
 
-    recipeMap_.emplace(hsh,
-                       std::make_any<Recipe_t<T>>([recipe](Injector &inj) { return recipe(inj); }));
+    recipeMap_.emplace(
+      hsh,
+      std::make_pair(RecipeType_t::CONCRETE,
+                     std::make_any<Recipe_t<T>>([recipe](Injector &inj) { return recipe(inj); })));
   }
 
   // NOLINTEND
@@ -97,14 +99,15 @@ public:
   void bind_impl() {
     constexpr auto hsh = mgfw::TypeHash<Iface_t>;
 
-    if(ifaceRecipeMap_.contains(hsh)) {
+    if(recipeMap_.contains(hsh)) {
       // TODO: log that overriding
     }
 
-    ifaceRecipeMap_.emplace(
-      hsh, std::make_any<IfaceRecipe_t<Iface_t>>([](Injector &injector) -> Iface_t & {
-        return injector.get<Impl_t>();
-      }));
+    recipeMap_.emplace(
+      hsh,
+      std::make_pair(RecipeType_t::INTERFACE,
+                     std::make_any<IfaceRecipe_t<Iface_t>>(
+                       [](Injector &injector) -> Iface_t & { return injector.get<Impl_t>(); })));
   }
 
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
@@ -122,11 +125,19 @@ public:
       return *this;
     }
     // We need to put this behind an if constexpr() path to prevent the compiler from generating
-    // code for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither of
-    // which would compile
+    // code for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither
+    // of which would compile
     else if constexpr(std::is_abstract_v<T>) {
-      if(ifaceRecipeMap_.contains(hsh)) {
-        return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
+      auto iter = recipeMap_.find(hsh);
+      if(iter != recipeMap_.end()) {
+        auto &[recipeType, recipeFn] = iter->second;
+        if(recipeType != RecipeType_t::INTERFACE) {
+          throw std::runtime_error(
+            std::format("Found recipe for type {}, but could use it because T is an abstract type "
+                        "and the recipe does not return a reference",
+                        mgfw::TypeString<T>));
+        }
+        return std::any_cast<IfaceRecipe_t<T>>(recipeFn)(*this);
       }
       else {
         throw std::runtime_error(
@@ -139,10 +150,14 @@ public:
     else {
       auto optionalRef = typeMap_.find<T>();
       if(!optionalRef.has_value()) {
-        // If we have a recipe for an interface, invoke it to return a reference. Otherwise, create
-        // the new instance and get a reference to it.
-        if(ifaceRecipeMap_.contains(hsh)) {
-          return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
+        // It's possible that we want to return a non-abstract interface type that was set up with
+        // bind-impl. If this is the case then there won't be an entry in the type map, but we still
+        // want to invoke the recipe and return the reference to the interface.
+        auto iter = recipeMap_.find(hsh);
+
+        // Awkward naming, but iter->second is the pair of [recipeType, recipeFn]
+        if(iter != recipeMap_.end() && iter->second.first == RecipeType_t::INTERFACE) {
+          return std::any_cast<IfaceRecipe_t<T>>(iter->second.second)(*this);
         }
         else {
           return typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
@@ -168,6 +183,22 @@ private:
      * Create a fresh instance of the requested dependency.
      */
     NEW_VALUE
+  };
+
+  /**
+   * Tag for the type of a recipe.
+   */
+  enum class RecipeType_t : U8 {
+    /**
+     * 'Normal' type; returns a value.
+     */
+    CONCRETE,
+
+    /**
+     * Interface types; returns a reference.
+     * Necessary for abstract types, since they cannot be instantiated.
+     */
+    INTERFACE,
   };
 
   /**
@@ -210,14 +241,23 @@ private:
     // Use `defer` to run this code to pop off the stack after we've returned
     const mgfw::defer deferred([&] { typeHashStack_.erase(hsh); });
 
-    // If we're not calling with create(), then we're creating the instance being placed in the type
-    // map, so record when it was instantiated.
+    // If we're not calling with create(), then we're creating the instance being placed in the
+    // type map, so record when it was instantiated.
     if(depType != DepType_t::NEW_VALUE) {
       instantiationList_.push_back(hsh);
     }
 
-    if(recipeMap_.contains(hsh)) {
-      return std::any_cast<Recipe_t<T>>(recipeMap_.at(hsh))(*this);
+    auto iter = recipeMap_.find(hsh);
+    if(iter != recipeMap_.end()) {
+      auto &[recipeType, recipeFn] = iter->second;
+      if(recipeType != RecipeType_t::CONCRETE) {
+        throw std::runtime_error(std::format(
+          "make_dependency_ called for type {}, but an invalid recipe was found of type {}",
+          mgfw::TypeString<T>,
+          std::to_underlying(recipeType)));
+      }
+
+      return std::any_cast<Recipe_t<T>>(recipeFn)(*this);
     }
 
     if constexpr(std::default_initializable<T>) {
@@ -239,8 +279,10 @@ private:
    */
   std::vector<mgfw::Hash_t> instantiationList_;
 
-  std::map<mgfw::Hash_t, std::any> recipeMap_;
-  std::map<mgfw::Hash_t, std::any> ifaceRecipeMap_;
+  /**
+   * Functions used to create new instances of types
+   */
+  std::map<mgfw::Hash_t, std::pair<RecipeType_t, std::any>> recipeMap_;
 
   /**
    * Tracks the types that are currently being injected; used to detect cycles. Though we use this
@@ -249,6 +291,9 @@ private:
    */
   std::set<mgfw::Hash_t> typeHashStack_;
 
+  /**
+   * Contains cached instances of given types
+   */
   mgfw::TypeMap typeMap_;
 };
 
