@@ -52,11 +52,12 @@ TEST_F(TypeMapTest, emplace) {
   mgfw::TypeMap tm;
   EXPECT_FALSE(tm.contains(mgfw::TypeHash<int>))
     << "TypeMap should correctly report the status of types which have not been emplaced";
-  EXPECT_FALSE(tm.emplace<int>(4)) << "TypeMap::emplace returns false when T does not yet exist";
-  EXPECT_TRUE(tm.emplace<int>(5)) << "TypeMap::emplace returns true when T already exists";
+  EXPECT_NO_THROW(tm.emplace<int>(4))
+    << "TypeMap::emplace should succeed when T does not yet exist";
+  EXPECT_THROW(tm.emplace<int>(5), std::runtime_error)
+    << "TypeMap::emplace should throw when T already exists";
   EXPECT_TRUE(tm.contains(mgfw::TypeHash<int>))
     << "TypeMap::emplace should create an instance of T";
-  EXPECT_EQ(tm.get_ref<int>(), 4) << "TypeMap::emplace should have no effect when T already exists";
 }
 
 TEST_F(TypeMapTest, ref) {

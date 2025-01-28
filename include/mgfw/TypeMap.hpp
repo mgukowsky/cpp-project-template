@@ -1,11 +1,14 @@
 #pragma once
 
 #include "mgfw/TypeHash.hpp"
+#include "mgfw/TypeString.hpp"
 
 #include <cassert>
 #include <concepts>
+#include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 
 namespace mgfw {
@@ -63,40 +66,56 @@ class TypeMap {
 public:
   bool contains(const mgfw::Hash_t hsh) const noexcept { return map_.contains(hsh); }
 
+  template<typename T>
+  std::optional<std::reference_wrapper<T>> find() {
+    constexpr auto hsh = mgfw::TypeHash<T>;
+
+    auto it = map_.find(hsh);
+
+    if(it == map_.end()) {
+      return std::optional<std::reference_wrapper<T>>();
+    }
+
+    return extract_from_ctr_base<T>(*(it->second.get()));
+  }
+
   /**
    * Creates an instance of type T and places it in the map. args are passed
-   * to T's constructor. If type T does not yet exist in the map, an instance of
-   * T is created, and this function returns false. Otherwise, this function does
-   * nothing and returns true.
+   * to T's constructor.
    */
   template<typename T, typename... Args>
-  bool emplace(Args &&...args) {
+  T &emplace(Args &&...args) {
+    constexpr auto hsh = TypeHash<T>;
+
     /**
      * N.B. we have to explicitly create the TypeContainer here; we can't just forward
      * the args to try_emplace by themselves, as the map would not know which type of
      * container to create.
      */
+    auto [iter, success] =
+      map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<Args>(args)...));
 
-    constexpr auto hsh = TypeHash<T>;
-
-    if(contains(hsh)) {
-      // TODO: throw?
-      return true;
+    if(!success) {
+      throw std::runtime_error(std::format(
+        "Failed to emplace instance of {}; was it called more than once?", mgfw::TypeString<T>));
     }
 
-    map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<Args>(args)...));
-    return false;
+    return extract_from_ctr_base<T>(*(iter->second.get()));
   }
 
   template<typename T>
-  void insert(T &&val) {
+  T &insert(T &&val) {
     constexpr auto hsh = TypeHash<T>;
 
-    if(hsh) {
-      // TODO: throw?
+    auto [iter, success] =
+      map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<T>(val)));
+
+    if(!success) {
+      throw std::runtime_error(std::format(
+        "Failed to insert instance of {}; was it called more than once?", mgfw::TypeString<T>));
     }
 
-    map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<T>(val)));
+    return extract_from_ctr_base<T>(*(iter->second.get()));
   }
 
   void erase(const mgfw::Hash_t hsh) { map_.erase(hsh); }
@@ -109,14 +128,23 @@ public:
     constexpr auto hsh = mgfw::TypeHash<T>;
     assert(map_.contains(hsh) || "get_ref<T>() called without T in map_");
 
-    // Let this throw if there is no entry for T
-    auto pContainerBase = map_.at(hsh).get();
-    assert(pContainerBase->identity() == hsh || "get_ref<T> has an entry with a typehash != T");
-
-    return reinterpret_cast<TypeContainer<T> *>(pContainerBase)->get();
+    return extract_from_ctr_base<T>(*(map_.at(hsh).get()));
   }
 
 private:
+
+  // Extract a reference to the contained type instance
+  template<typename T>
+  T &extract_from_ctr_base(TypeContainerBase &pContainerBase) {
+    constexpr auto hsh = mgfw::TypeHash<T>;
+
+    // assert(pContainerBase || "extract_from_ctr_base<T>: pContainerBase is null");
+    assert(pContainerBase.identity() == hsh
+           || "extract_from_ctr_base<T> has an entry with a typehash != T");
+
+    return reinterpret_cast<TypeContainer<T> &>(pContainerBase).get();
+  }
+
   std::map<mgfw::Hash_t, std::unique_ptr<TypeContainerBase>> map_;
 };
 

@@ -137,19 +137,19 @@ public:
       }
     }
     else {
-      if(!typeMap_.contains(hsh)) {
+      auto optionalRef = typeMap_.find<T>();
+      if(!optionalRef.has_value()) {
         // If we have a recipe for an interface, invoke it to return a reference. Otherwise, create
         // the new instance and get a reference to it.
         if(ifaceRecipeMap_.contains(hsh)) {
           return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
         }
         else {
-          typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
+          return typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
         }
       }
 
-      // TODO: we are performing the lookup for <T> in the typemap twice
-      return typeMap_.get_ref<T>();
+      return optionalRef.value();
     }
   }
 
@@ -195,7 +195,6 @@ private:
    *
    * If a recipe for a type exists, then the recipe will be invoked. Otherwise, we will attempt to
    * default-construct an instance of T. If that fails, then we throw an exception.
-   * TODO: add notes for impl/abstract check
    */
   template<typename T>
   T make_dependency_(const DepType_t depType) {
