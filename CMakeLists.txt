@@ -20,7 +20,23 @@ configure_target(${PROJECT_NAME})
 
 find_package(Threads REQUIRED)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+cpmaddpackage(
+  NAME
+  spdlog
+  GITHUB_REPOSITORY
+  gabime/spdlog
+  GIT_TAG
+  v1.15.0
+  VERSION
+  v1.15.0
+)
+
+target_link_libraries(${PROJECT_NAME}
+  PUBLIC
+    ${CMAKE_DL_LIBS}
+    spdlog::spdlog
+    Threads::Threads
+)
 
 include(SourceFileManifest)
 target_sources(${PROJECT_NAME} PRIVATE ${MYPROJ_SOURCE_FILE_MANIFEST})

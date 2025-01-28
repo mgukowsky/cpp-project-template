@@ -1,7 +1,11 @@
-#include <iostream>
+#include <mgfw/SpdlogLogger.hpp>
 
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
-  std::cout << "Hello from MYPROJ\n";
+  mgfw::SpdlogLogger logger{};
+
+  logger.info("hi");
+  logger.warn("bye");
+  logger.critical("aah");
 
   return 0;
 }
