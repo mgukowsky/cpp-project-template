@@ -26,9 +26,15 @@ public:
   template<typename T>
   using InjType_t = std::remove_pointer_t<std::decay_t<T>>;
 
+  /**
+   * 'Recipes' are functions that return a new instance of type T.
+   */
   template<typename T>
   using Recipe_t = std::function<T(Injector &)>;
 
+  /**
+   * Recipes for interface (abstract) types can _only_ return a reference
+   */
   template<typename T>
   using IfaceRecipe_t = std::function<T &(Injector &)>;
 
@@ -115,9 +121,9 @@ public:
     if constexpr(hsh == TypeHash<Injector>) {
       return *this;
     }
-    // We need to put this behind an if constexpr() path to prevent the compiler for generating code
-    // for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither of which
-    // would compile
+    // We need to put this behind an if constexpr() path to prevent the compiler from generating
+    // code for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither of
+    // which would compile
     else if constexpr(std::is_abstract_v<T>) {
       if(ifaceRecipeMap_.contains(hsh)) {
         return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
@@ -132,6 +138,8 @@ public:
     }
     else {
       if(!typeMap_.contains(hsh)) {
+        // If we have a recipe for an interface, invoke it to return a reference. Otherwise, create
+        // the new instance and get a reference to it.
         if(ifaceRecipeMap_.contains(hsh)) {
           return std::any_cast<IfaceRecipe_t<T>>(ifaceRecipeMap_.at(hsh))(*this);
         }
@@ -199,6 +207,8 @@ private:
     }
 
     typeHashStack_.insert(hsh);
+
+    // Use `defer` to run this code to pop off the stack after we've returned
     const mgfw::defer deferred([&] { typeHashStack_.erase(hsh); });
 
     // If we're not calling with create(), then we're creating the instance being placed in the type
