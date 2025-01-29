@@ -52,7 +52,7 @@
     {
       "name": "gcc_debug",
       "configurePreset": "gcc_debug",
-      "verbose": false
+      "verbose": true
     },
     {
       "name": "clang_debug",

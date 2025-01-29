@@ -219,18 +219,12 @@ TEST_F(Injector_test, bind_impl) {
 
   {
     int i = 0;
-    inj.add_recipe<Base>([&](Injector &) {
+    EXPECT_THROW(inj.add_recipe<Base>([&](Injector &) {
       ++i;
       return Base();
-    });
-
-    auto &base3 = inj.get<Base>();
-    EXPECT_EQ("DERIVED", base3.get_str())
-      << "If Injector::bind_impl<Base> has been invoked, then Injector::get<Base> should ignore a "
-         "recipe added by Injector::add_recipe<Base>";
-    EXPECT_EQ(0, i)
-      << "If Injector::bind_impl<Base> has been invoked, then Injector::get<Base> should ignore a "
-         "recipe added by Injector::add_recipe<Base>";
+    }),
+                 std::runtime_error)
+      << "Injector::add_recipe<T> should throw if a bind_impl<T, U> was already invoked";
   }
 }
 

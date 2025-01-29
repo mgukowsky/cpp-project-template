@@ -62,7 +62,7 @@ public:
     // Can't do this in the template declaration, so we have to do it here
     using T = InjType_t<Raw_t>;
     static_assert(std::constructible_from<T, Args...>,
-                  "Injector#addCtorRecipe<T, ...Ts> will only accept Ts if T has a constructor "
+                  "Injector::add_ctor_recipe<T, ...Ts> will only accept Ts if T has a constructor "
                   "that accepts the arguments (Ts...)");
 
     auto recipe = [](Injector &injector) {
@@ -80,7 +80,9 @@ public:
     constexpr auto hsh = mgfw::TypeHash<T>;
 
     if(recipeMap_.contains(hsh)) {
-      // TODO: log that overriding
+      throw std::runtime_error(
+        std::format("Injector::add_recipe invoked for type {}, but a recipe was already added",
+                    mgfw::TypeString<T>));
     }
 
     recipeMap_.emplace(
@@ -100,7 +102,9 @@ public:
     constexpr auto hsh = mgfw::TypeHash<Iface_t>;
 
     if(recipeMap_.contains(hsh)) {
-      // TODO: log that overriding
+      throw std::runtime_error(
+        std::format("Injector::bind_impl invoked for type {}, but a recipe was already added",
+                    mgfw::TypeString<Iface_t>));
     }
 
     recipeMap_.emplace(
