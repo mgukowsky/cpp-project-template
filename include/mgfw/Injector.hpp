@@ -38,11 +38,7 @@ public:
   template<typename T>
   using IfaceRecipe_t = std::function<T &(Injector &)>;
 
-  /**
-   * Adds a specialized recipe to return a "child" Injector (i.e. a new Injector with pUpstream_ set
-   * to the called Injector instance when creat() is invoked.
-   */
-  Injector();
+  Injector() = default;
 
   /**
    * Deletes all entries in the typeMap_ in the opposite order in which they were constructed.

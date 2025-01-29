@@ -58,7 +58,10 @@ protected:
     LifetimeTracker::numCopyCalls = 0;
     LifetimeTracker::numDtorCalls = 0;
     LifetimeTracker::numMoveCalls = 0;
+    dtorTracker.clear();
   }
+
+  inline static std::vector<std::string> dtorTracker = {};
 };
 
 }  // namespace
@@ -390,4 +393,46 @@ TEST_F(Injector_test, throw_when_no_recipe_and_not_default_constructible) {
   EXPECT_NO_THROW([[maybe_unused]] auto &klassRef = inj.get<Klass>())
     << "Injector::get should not throw when a type that is not default constructible is requested, "
        "and there is a recipe for it";
+}
+
+TEST_F(Injector_test, delete_in_reverse_order_of_creation) {
+  // NOLINTBEGIN
+  struct A {
+    ~A() { dtorTracker.emplace_back("A"); }
+  };
+
+  struct B {
+    ~B() { dtorTracker.emplace_back("B"); }
+  };
+
+  struct C {
+    ~C() { dtorTracker.emplace_back("C"); }
+  };
+
+  // NOLINTEND
+
+  {
+    Injector inj;
+
+    {
+      [[maybe_unused]] auto &c = inj.get<C>();
+      [[maybe_unused]] auto &b = inj.get<B>();
+      [[maybe_unused]] auto &a = inj.get<A>();
+    }
+
+    // Awkward, but we need to reset this, since the destructor will be called on the moved-from
+    // instances when each type instance was created (the TypeMap::insert call in Injector::get)
+    dtorTracker.clear();
+  }
+
+  EXPECT_EQ(3, dtorTracker.size());
+  EXPECT_EQ("A", dtorTracker.at(0))
+    << "On destruction, an Injector instance should delete the instances it owns in the reverse "
+       "order in which they were created";
+  EXPECT_EQ("B", dtorTracker.at(1))
+    << "On destruction, an Injector instance should delete the instances it owns in the reverse "
+       "order in which they were created";
+  EXPECT_EQ("C", dtorTracker.at(2))
+    << "On destruction, an Injector instance should delete the instances it owns in the reverse "
+       "order in which they were created";
 }
