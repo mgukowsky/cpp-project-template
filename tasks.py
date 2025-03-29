@@ -7,6 +7,8 @@ import tempfile
 
 from invoke import Context, task
 
+NPROC = os.cpu_count()
+
 
 def crun(context, cmd):
     context.run(cmd, echo=True, pty=True)
@@ -51,14 +53,14 @@ def lint(c: Context, fix: bool = False, cppcheck: bool = False):
     try:
         crun(
             c,
-            f"run-clang-tidy '-header-filter=include/mgfw' -use-color -j{os.cpu_count()} -p {outdir} {"-fix -format" if fix else ""}",
+            f"run-clang-tidy '-header-filter=include/mgfw' -use-color -j{NPROC} -p {outdir} {"-fix -format" if fix else ""}",
         )
 
         # cppcheck is useful but a little too noisy for me to use by default
         if cppcheck:
             crun(
                 c,
-                f"cppcheck --check-level=normal --enable=all -j{os.cpu_count()} --project={outdir}/compile_commands.json",
+                f"cppcheck --check-level=normal --enable=all -j{NPROC} --project={outdir}/compile_commands.json",
             )
     finally:
         shutil.rmtree(outdir, ignore_errors=True)
@@ -78,7 +80,7 @@ def workflow(c: Context, preset: str = default_toolchain(), coverage=False):
             c,
             f"gcovr -e '_deps' --gcov-executable "
             f"{'\"llvm-cov gcov\"' if re.match('clang', preset) else '\"gcov\"'} "
-            f"-r {original_dir} --html-nested {coverage_file} -j{os.cpu_count()}",
+            f"-r {original_dir} --html-nested {coverage_file} -j{NPROC}",
         )
         os.chdir(original_dir)
         print(f"💡 Coverage report available in {build_dir}/{coverage_file} !")
