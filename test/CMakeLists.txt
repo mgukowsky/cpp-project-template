@@ -39,8 +39,7 @@ function(add_unit_test TESTNAME)
       # $<$<CXX_COMPILER_ID:Clang>:-fprofile-instr-generate -fcoverage-mapping>
   )
 
-  target_include_directories(${TESTNAME}
-                             PRIVATE ${PROJECT_SOURCE_DIR}/test/include)
+  target_include_directories(${TESTNAME} PUBLIC ${PROJECT_SOURCE_DIR}/test/include)
   target_link_libraries(${TESTNAME} gtest gmock gtest_main)
 
   target_sources(
@@ -65,6 +64,7 @@ endfunction()
 
 add_unit_test(defer)
 add_unit_test(Injector ${PROJECT_SOURCE_DIR}/src/mgfw/Injector.cpp)
+add_unit_test(events) # Tests MessageQueue, EventReader, EventWriter
 add_unit_test(TypeHash)
 add_unit_test(TypeMap)
 add_unit_test(TypeString)

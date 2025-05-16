@@ -26,9 +26,11 @@ cpmaddpackage(
   GITHUB_REPOSITORY
   gabime/spdlog
   GIT_TAG
-  v1.15.0
+  v1.15.3
   VERSION
-  v1.15.0
+  v1.15.3
+  GIT_PROGRESS
+  TRUE
 )
 
 target_link_libraries(${PROJECT_NAME}

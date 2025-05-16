@@ -1,3 +1,5 @@
+set(FETCHCONTENT_QUIET FALSE)
+
 # Per https://github.com/cpm-cmake/CPM.cmake/wiki/Downloading-CPM.cmake-in-CMake
 file(
   DOWNLOAD
