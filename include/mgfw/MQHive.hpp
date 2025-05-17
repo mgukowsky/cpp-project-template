@@ -13,6 +13,15 @@
 #include <unordered_map>
 
 namespace mgfw {
+
+/**
+ * Manages MessageQueues, and gives clients a facility to retrieve the reader/writer endpoints for
+ * the MessageQueue corresponding to a given ID. MessageQueues are lazily initialized as they are
+ * requested.
+ *
+ * It is considered a bug if a reader/writer for a given ID is requested for a
+ * MessageQueue with a different type than the one that already exists in the MQHive.
+ */
 class MQHive {
 public:
   explicit MQHive(ILogger &logger) : logger_(logger) { }
@@ -29,7 +38,8 @@ public:
 
 private:
   struct MQContainerBase {
-    explicit MQContainerBase(const Hash_t typeHash) : typeHash(typeHash) { }
+    MQContainerBase(const Hash_t typeHash, std::string_view typeString)
+      : typeHash(typeHash), typeString(typeString) { }
 
     virtual ~MQContainerBase() = default;
 
@@ -38,13 +48,14 @@ private:
     MQContainerBase &operator=(const MQContainerBase &) = delete;
     MQContainerBase &operator=(MQContainerBase &&)      = delete;
 
-    const Hash_t typeHash;
+    const Hash_t     typeHash;
+    std::string_view typeString;
   };
 
   template<typename T>
   struct MQContainer : public MQContainerBase {
-    explicit MQContainer(ILogger &logger, const U64 id)
-      : MQContainerBase(TypeHash<T>), mq(logger, id) { }
+    MQContainer(ILogger &logger, const U64 id)
+      : MQContainerBase(TypeHash<T>, TypeString<T>), mq(logger, id) { }
 
     MessageQueue<T> mq;
   };
@@ -61,10 +72,11 @@ private:
       it = resultIt;
     }
     else if(it->second->typeHash != TypeHash<T>) {
-      throw std::runtime_error(
-        std::format("Type mismatch on MQHive::get_or_create_queue (id = {}, current_type = {})",
-                    std::to_string(id),
-                    TypeString<T>));
+      throw std::runtime_error(std::format(
+        "Type mismatch on MQHive::get_or_create_queue (id = {}, storedType = {}, currentType = {})",
+        id,
+        it->second->typeString,
+        TypeString<T>));
     }
 
     return static_cast<MQContainer<T> *>(it->second.get())->mq;
