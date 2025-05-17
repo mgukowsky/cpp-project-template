@@ -20,6 +20,8 @@ public:
 
   void write(const T &message) { queue_.enqueue(message); }
 
+  void write(const T &&message) { queue_.enqueue(std::move(message)); }
+
   template<typename... Args>
   void emplace(Args &&...args) {
     queue_.emplace(std::forward<Args>(args)...);

@@ -73,7 +73,7 @@ public:
     auto it = map_.find(hsh);
 
     if(it == map_.end()) {
-      return std::optional<std::reference_wrapper<T>>();
+      return std::nullopt;
     }
 
     return extract_from_ctr_base<T>(*(it->second.get()));
@@ -138,7 +138,6 @@ private:
   T &extract_from_ctr_base(TypeContainerBase &pContainerBase) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
-    // assert(pContainerBase || "extract_from_ctr_base<T>: pContainerBase is null");
     assert(pContainerBase.identity() == hsh
            || "extract_from_ctr_base<T> has an entry with a typehash != T");
 

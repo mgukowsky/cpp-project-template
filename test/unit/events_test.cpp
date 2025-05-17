@@ -11,8 +11,6 @@ using mgfw::EventReader;
 using mgfw::EventWriter;
 using mgfw::MessageQueue;
 using mgfw_test::LoggerMock;
-using ::testing::_;
-using ::testing::HasSubstr;
 
 struct Strukt {
   int  i;
@@ -60,7 +58,7 @@ TEST(MessageQueueTest, DrainQueue) {
 
 TEST(MessageQueueTest, LogsWarningOnDestructionIfMessagesRemain) {
   LoggerMock logger;
-  EXPECT_CALL(logger, warn(HasSubstr("unprocessed message")));
+  EXPECT_CALL(logger, warn(::testing::HasSubstr("unprocessed message")));
   {
     MessageQueue<std::string> queue(logger, 1);
     queue.emplace("Leaked");
@@ -69,7 +67,7 @@ TEST(MessageQueueTest, LogsWarningOnDestructionIfMessagesRemain) {
 
 TEST(MessageQueueTest, NoWarningLoggedIfNoMessagesRemain) {
   LoggerMock logger;
-  EXPECT_CALL(logger, warn(_)).Times(0);
+  EXPECT_CALL(logger, warn(::testing::_)).Times(0);
   {
     MessageQueue<std::string> queue(logger, 1);
     queue.emplace("To be drained");

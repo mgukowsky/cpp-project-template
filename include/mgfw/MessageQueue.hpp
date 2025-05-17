@@ -41,6 +41,8 @@ public:
    */
   void enqueue(const T &message) { messages_.push_back(message); }
 
+  void enqueue(const T &&message) { messages_.push_back(std::move(message)); }
+
   /**
    * Enqueue a message by constructing it in place
    */
