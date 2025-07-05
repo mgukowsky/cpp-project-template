@@ -67,6 +67,7 @@ add_unit_test(defer)
 add_unit_test(Injector ${PROJECT_SOURCE_DIR}/src/mgfw/Injector.cpp)
 add_unit_test(events) # Tests MessageQueue, EventReader, EventWriter
 add_unit_test(MQHive)
+add_unit_test(SyncCell)
 add_unit_test(TypeHash)
 add_unit_test(TypeMap)
 add_unit_test(TypeString)
