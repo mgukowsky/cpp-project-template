@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 
 namespace mgfw {
@@ -13,5 +14,8 @@ using U8  = std::uint8_t;
 using U16 = std::uint16_t;
 using U32 = std::uint32_t;
 using U64 = std::uint64_t;
+
+using TimePoint_t = decltype(std::chrono::steady_clock::now());
+using Duration_t  = std::chrono::nanoseconds;
 
 }  // namespace mgfw

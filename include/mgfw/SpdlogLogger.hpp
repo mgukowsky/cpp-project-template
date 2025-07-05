@@ -12,8 +12,8 @@ public:
   explicit SpdlogLogger(LogLevel initialLevel = LogLevel::INFO);
 
   ~SpdlogLogger() override;
-  SpdlogLogger(const SpdlogLogger &)            = delete;
-  SpdlogLogger &operator=(const SpdlogLogger &) = delete;
+  SpdlogLogger(const SpdlogLogger &)            = default;
+  SpdlogLogger &operator=(const SpdlogLogger &) = default;
   SpdlogLogger(SpdlogLogger &&)                 = default;
   SpdlogLogger &operator=(SpdlogLogger &&)      = default;
 

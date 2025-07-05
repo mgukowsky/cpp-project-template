@@ -26,8 +26,8 @@ public:
   ILogger()          = default;
   virtual ~ILogger() = default;
 
-  ILogger(const ILogger &)            = delete;
-  ILogger &operator=(const ILogger &) = delete;
+  ILogger(const ILogger &)            = default;
+  ILogger &operator=(const ILogger &) = default;
   ILogger(ILogger &&)                 = default;
   ILogger &operator=(ILogger &&)      = default;
 

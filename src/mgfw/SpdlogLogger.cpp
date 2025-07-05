@@ -21,7 +21,11 @@ SpdlogLogger::SpdlogLogger(const ILogger::LogLevel initialLevel)
   set_level(initialLevel);
 }
 
-SpdlogLogger::~SpdlogLogger() { logger_->flush(); }
+SpdlogLogger::~SpdlogLogger() {
+  if(logger_) {
+    logger_->flush();
+  }
+}
 
 void SpdlogLogger::critical(std::string_view msg) {
   logger_->critical(FMTSTR, colorize_string(terminal_color::bright_magenta, msg));
