@@ -17,6 +17,20 @@
 
 namespace mgfw {
 
+/**
+ * Types managed by the Injector need to be move constructible (unless they're abstract... e.g.
+ * calling get<Interface> after bind_impl<Implementation, Interface>).
+ */
+template<typename T>
+concept injectable_ref_type = std::is_abstract_v<T> || std::move_constructible<T>;
+
+/**
+ * Types that the Injector doesn't manage but still instantiates (e.g. via `create()`) need to be
+ * move constructible, but not abstract (b/c an abstract type can't be instantiated).
+ */
+template<typename T>
+concept injectable_val_type = (!std::is_abstract_v<T>) && std::move_constructible<T>;
+
 class Injector {
 public:
   /**
@@ -46,14 +60,15 @@ public:
   ~Injector();
 
   /**
-   * No copying, no moving
+   * Moving is OK, but no copying (mainly because I don't want to write the deep copy logic XD )
    */
   Injector(const Injector &)            = delete;
   Injector &operator=(const Injector &) = delete;
-  Injector(Injector &&)                 = delete;
-  Injector &operator=(Injector &&)      = delete;
+  Injector(Injector &&)                 = default;
+  Injector &operator=(Injector &&)      = default;
 
   template<typename Raw_t, typename... Args>
+  requires injectable_val_type<Raw_t>
   void add_ctor_recipe() {
     // Can't do this in the template declaration, so we have to do it here
     using T = InjType_t<Raw_t>;
@@ -71,7 +86,7 @@ public:
   // copy the recipe into the lambda that will be used later
   // NOLINTBEGIN
   template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
-  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &>
+  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &> && injectable_ref_type<T>
   void add_recipe(RecipeFn_t &&recipe) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
@@ -93,7 +108,8 @@ public:
            typename RawIface_t,
            typename Impl_t  = InjType_t<RawImpl_t>,
            typename Iface_t = InjType_t<RawIface_t>>
-  requires std::derived_from<Impl_t, Iface_t>
+  requires std::derived_from<Impl_t, Iface_t> && injectable_ref_type<Impl_t>
+        && injectable_ref_type<Iface_t>
   void bind_impl() {
     constexpr auto hsh = mgfw::TypeHash<Iface_t>;
 
@@ -111,12 +127,13 @@ public:
   }
 
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
-  requires(!std::is_abstract_v<T>)
+  requires injectable_val_type<T>
   T create() {
     return make_dependency_<T>(DepType_t::NEW_VALUE);
   }
 
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
+  requires injectable_ref_type<T>
   T &get() {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
