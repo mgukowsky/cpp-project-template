@@ -2,7 +2,14 @@
 
 #include "mgfw/ILogger.hpp"
 
+#if defined(__GNUC__) || defined(__GNUG__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
 #include <spdlog/spdlog.h>
+#if defined(__GNUC__) || defined(__GNUG__)
+#pragma GCC diagnostic pop
+#endif
 
 #include <memory>
 

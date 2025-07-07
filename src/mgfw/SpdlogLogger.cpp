@@ -1,7 +1,14 @@
 #include "mgfw/SpdlogLogger.hpp"
 
+#if defined(__GNUC__) || defined(__GNUG__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
 #include <spdlog/fmt/bundled/color.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#if defined(__GNUC__) || defined(__GNUG__)
+#pragma GCC diagnostic pop
+#endif
 
 using fmt::terminal_color;
 

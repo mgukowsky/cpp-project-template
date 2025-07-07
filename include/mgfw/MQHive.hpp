@@ -38,8 +38,8 @@ public:
 
 private:
   struct MQContainerBase {
-    MQContainerBase(const Hash_t typeHash, std::string_view typeString)
-      : typeHash(typeHash), typeString(typeString) { }
+    MQContainerBase(const Hash_t typeHashArg, std::string_view typeStringArg)
+      : typeHash(typeHashArg), typeString(typeStringArg) { }
 
     virtual ~MQContainerBase() = default;
 
