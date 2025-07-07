@@ -45,6 +45,11 @@ public:
   JobHandle_t do_now(JobFunc_t func, std::string desc = "");
 
   /**
+   * Get internal cv.
+   */
+  std::condition_variable &get_cv();
+
+  /**
    * Run a job on a recurring interval. Same idea as the JS API.
    */
   JobHandle_t set_interval(const Duration_t delay, JobFunc_t func, std::string desc = "");
@@ -71,14 +76,9 @@ private:
     Duration_t        interval;  // 0 if not repeating
     JobFunc_t         func;
     std::string       desc;
-
-    bool operator>(const Job_ &other) const noexcept { return deadline > other.deadline; }
   };
 
-  class JobComparator_ {
-  public:
-    bool operator()(const Job_ &a, const Job_ &b) const noexcept { return a > b; }
-  };
+  static bool job_comparator_(const Job_ &lhs, const Job_ &rhs) noexcept;
 
   JobHandle_t schedule_(const Duration_t delay,
                         JobFunc_t      &&func,
@@ -93,9 +93,10 @@ private:
 
   // N.B. we're leveraging the properties of a std::set to use it as a priority queue. We can't
   // use std::priority_queue b/c we need random access to cancel jobs.
-  std::set<Job_, JobComparator_> jobQueue_;
-  std::mutex                     mtx_;
-  std::condition_variable        cv_;
+  std::set<Job_, std::function<bool(const Job_ &, const Job_ &)>> jobQueue_;
+
+  std::mutex              mtx_;
+  std::condition_variable cv_;
 };
 
 }  // namespace mgfw

@@ -6,7 +6,11 @@
 namespace mgfw {
 
 Scheduler::Scheduler(IClock &clock, ILogger &logger)
-  : clock_(clock), logger_(logger), running_(false), nextId_(1) { }
+  : clock_(clock),
+    logger_(logger),
+    running_(false),
+    nextId_(1),
+    jobQueue_(&Scheduler::job_comparator_) { }
 
 Scheduler::Scheduler(Scheduler &&other) noexcept
   : clock_(other.clock_),
@@ -53,6 +57,8 @@ Scheduler::JobHandle_t Scheduler::do_now(JobFunc_t func, std::string desc) {
 
   return schedule_(Duration_t{0}, std::move(func), false, std::move(desc));
 }
+
+std::condition_variable &Scheduler::get_cv() { return cv_; }
 
 Scheduler::JobHandle_t Scheduler::set_interval(const Duration_t delay,
                                                JobFunc_t        func,
@@ -129,6 +135,10 @@ void Scheduler::run() {
 void Scheduler::stop() {
   running_.store(false);
   cv_.notify_all();
+}
+
+bool Scheduler::job_comparator_(const Job_ &lhs, const Job_ &rhs) noexcept {
+  return lhs.deadline < rhs.deadline;
 }
 
 Scheduler::JobHandle_t Scheduler::schedule_(const Duration_t delay,

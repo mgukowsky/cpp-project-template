@@ -22,22 +22,23 @@ function(add_unit_test TESTNAME)
   configure_target(${TESTNAME})
 
   # Add coverage
-  target_compile_options(
-    ${TESTNAME}
-    PRIVATE
-      --coverage
-      # $<$<CXX_COMPILER_ID:GNU>:--coverage>
-      # More powerful source-based coverage; disabled for now
-      # $<$<CXX_COMPILER_ID:Clang>:-fprofile-instr-generate -fcoverage-mapping>
-  )
-
-  target_link_options(
-    ${TESTNAME}
-    PRIVATE
-      --coverage
-      # $<$<CXX_COMPILER_ID:GNU>:--coverage>
-      # $<$<CXX_COMPILER_ID:Clang>:-fprofile-instr-generate -fcoverage-mapping>
-  )
+  # TODO: make this an arg we pass in on the command line
+  # target_compile_options(
+  #   ${TESTNAME}
+  #   PRIVATE
+  #     --coverage
+  #     # $<$<CXX_COMPILER_ID:GNU>:--coverage>
+  #     # More powerful source-based coverage; disabled for now
+  #     # $<$<CXX_COMPILER_ID:Clang>:-fprofile-instr-generate -fcoverage-mapping>
+  # )
+  #
+  # target_link_options(
+  #   ${TESTNAME}
+  #   PRIVATE
+  #     --coverage
+  #     # $<$<CXX_COMPILER_ID:GNU>:--coverage>
+  #     # $<$<CXX_COMPILER_ID:Clang>:-fprofile-instr-generate -fcoverage-mapping>
+  # )
 
   target_include_directories(${TESTNAME} PUBLIC ${PROJECT_SOURCE_DIR}/test/include)
   target_link_libraries(${TESTNAME} gtest gmock gtest_main)
