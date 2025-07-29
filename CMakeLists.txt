@@ -33,11 +33,29 @@ cpmaddpackage(
   TRUE
 )
 
+cpmaddpackage(
+  NAME
+  glfw
+  GITHUB_REPOSITORY
+  glfw/glfw
+  GIT_TAG
+  3.4
+  VERSION
+  3.4
+  GIT_PROGRESS
+  TRUE
+  OPTIONS
+    "GLFW_BUILD_DOCS OFF"
+    "GLFW_BUILD_TESTS OFF"
+    "GLFW_BUILD_EXAMPLES OFF"
+)
+
 target_link_libraries(${PROJECT_NAME}
   PUBLIC
     ${CMAKE_DL_LIBS}
     spdlog::spdlog
     Threads::Threads
+    glfw
 )
 
 include(SourceFileManifest)
