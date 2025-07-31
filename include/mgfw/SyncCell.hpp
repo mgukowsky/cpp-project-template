@@ -38,7 +38,7 @@ public:
   SyncCell(SyncCell &&)                 = default;
   SyncCell &operator=(SyncCell &&)      = default;
 
-  [[nodiscard]] ScopedProxyLock get_lock() {
+  [[nodiscard]] ScopedProxyLock get_locked() {
     return ScopedProxyLock(std::unique_lock<Lock_t>(lock_), instance_);
   }
 

@@ -19,15 +19,15 @@ TEST(SyncCellTest, UnlocksOnDestruction) {
   std::atomic_bool t2_acquired = false;
 
   std::thread t1([&]() {
-    auto lck = mtx.get_lock();
+    auto lck = mtx.get_locked();
     step1.set_value();   // Let t2 know we've locked it
     step2Future.wait();  // Wait until main thread allows release
                          // lck destroyed here, mutex released
   });
 
   std::thread t2([&]() {
-    step1Future.wait();            // Wait until t1 has locked
-    auto lck    = mtx.get_lock();  // This should block until t1 releases
+    step1Future.wait();              // Wait until t1 has locked
+    auto lck    = mtx.get_locked();  // This should block until t1 releases
     t2_acquired = true;
   });
 

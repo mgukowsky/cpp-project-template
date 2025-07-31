@@ -3,8 +3,10 @@
 #include "mgfw/ILogger.hpp"
 #include "mgfw/types.hpp"
 
+#include <cassert>
 #include <concepts>
 #include <format>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -18,10 +20,17 @@ template<typename Fn_t, typename T>
 concept MessageDrainCallback =
   std::invocable<Fn_t, const T &> && std::same_as<std::invoke_result_t<Fn_t, const T &>, void>;
 
+/**
+ * Simple message queue.
+ *
+ * *NOT* threadsafe; insertions are included to enforce that this MQ is only used on a single
+ * thread.
+ */
 template<MessageType T>
 class MessageQueue {
 public:
-  MessageQueue(ILogger &logger, const U64 id) : logger_(logger), id_(id) { }
+  MessageQueue(ILogger &logger, const U64 id)
+    : logger_(logger), id_(id), tid_(std::this_thread::get_id()) { }
 
   MessageQueue(const MessageQueue &)            = delete;
   MessageQueue &operator=(const MessageQueue &) = delete;
@@ -39,15 +48,22 @@ public:
   /**
    * Enqueue a message
    */
-  void enqueue(const T &message) { messages_.push_back(message); }
+  void enqueue(const T &message) {
+    assert(std::this_thread::get_id() == tid_);
+    messages_.push_back(message);
+  }
 
-  void enqueue(const T &&message) { messages_.push_back(std::move(message)); }
+  void enqueue(const T &&message) {
+    assert(std::this_thread::get_id() == tid_);
+    messages_.push_back(std::move(message));
+  }
 
   /**
    * Enqueue a message by constructing it in place
    */
   template<typename... Args>
   void emplace(Args &&...args) {
+    assert(std::this_thread::get_id() == tid_);
     messages_.emplace_back(std::forward<Args>(args)...);
   }
 
@@ -56,6 +72,7 @@ public:
    */
   template<MessageDrainCallback<T> Callback_t>
   void drain(Callback_t &&callback) {
+    assert(std::this_thread::get_id() == tid_);
     for(const auto &msg : messages_) {
       std::forward<Callback_t>(callback)(msg);
     }
@@ -63,9 +80,10 @@ public:
   }
 
 private:
-  std::vector<T> messages_;
-  ILogger       &logger_;
-  const U64      id_;
+  std::vector<T>  messages_;
+  ILogger        &logger_;
+  const U64       id_;
+  std::thread::id tid_;
 };
 
 }  // namespace mgfw

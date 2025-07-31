@@ -3,6 +3,7 @@
 #include "mgfw/EventReader.hpp"
 #include "mgfw/EventWriter.hpp"
 #include "mgfw/ILogger.hpp"
+#include "mgfw/SyncCell.hpp"
 #include "mgfw/TypeHash.hpp"
 #include "mgfw/TypeString.hpp"
 #include "mgfw/types.hpp"
@@ -62,12 +63,13 @@ private:
 
   template<typename T>
   MessageQueue<T> &get_or_create_queue(U64 id) {
-    auto it = queueMap_.find(id);
+    auto queueMap = queueMapCell_.get_locked();
+    auto it       = queueMap->find(id);
 
-    if(it == queueMap_.end()) {
+    if(it == queueMap->end()) {
       auto mqContainer = std::make_unique<MQContainer<T>>(logger_, id);
       [[maybe_unused]] auto [resultIt, success] =
-        queueMap_.insert(std::pair{id, std::move(mqContainer)});
+        queueMap->insert(std::pair{id, std::move(mqContainer)});
 
       it = resultIt;
     }
@@ -82,7 +84,7 @@ private:
     return static_cast<MQContainer<T> *>(it->second.get())->mq;
   }
 
-  std::unordered_map<U64, std::unique_ptr<MQContainerBase>> queueMap_;
+  SyncCell<std::unordered_map<U64, std::unique_ptr<MQContainerBase>>> queueMapCell_;
 
   ILogger &logger_;
 };
