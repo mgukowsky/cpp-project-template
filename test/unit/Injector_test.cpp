@@ -436,3 +436,51 @@ TEST_F(Injector_test, delete_in_reverse_order_of_creation) {
     << "On destruction, an Injector instance should delete the instances it owns in the reverse "
        "order in which they were created";
 }
+
+TEST_F(Injector_test, createShouldSupportNonMoveableTypes) {
+  Injector inj;
+
+  constexpr auto MAGIC = 42;
+
+  struct NoMoveNoCopy {
+    explicit NoMoveNoCopy() = default;
+
+    ~NoMoveNoCopy()                               = default;
+    NoMoveNoCopy(const NoMoveNoCopy &)            = delete;
+    NoMoveNoCopy(NoMoveNoCopy &&)                 = delete;
+    NoMoveNoCopy &operator=(const NoMoveNoCopy &) = delete;
+    NoMoveNoCopy &operator=(NoMoveNoCopy &&)      = delete;
+
+    int i_ = MAGIC;
+  };
+
+  // If we used inj.get<NoMoveNoCopy>(), then this wouldn't compile, since that function needs to
+  // perform a move and thus the type needs to be move constructible. Create uses RVO, so any type
+  // would be valid!
+  auto nmnc = inj.create<NoMoveNoCopy>();
+  EXPECT_EQ(MAGIC, nmnc.i_);
+}
+
+TEST_F(Injector_test, addRecipeAndCreateShouldSupportNonMoveableTypes) {
+  Injector inj;
+
+  constexpr auto MAGIC = 42;
+
+  class NoMoveNoCopy {
+  public:
+    explicit NoMoveNoCopy([[maybe_unused]] int i) : i_{MAGIC} { }
+
+    ~NoMoveNoCopy()                               = default;
+    NoMoveNoCopy(const NoMoveNoCopy &)            = delete;
+    NoMoveNoCopy(NoMoveNoCopy &&)                 = delete;
+    NoMoveNoCopy &operator=(const NoMoveNoCopy &) = delete;
+    NoMoveNoCopy &operator=(NoMoveNoCopy &&)      = delete;
+
+    int i_;
+  };
+
+  inj.add_ctor_recipe<NoMoveNoCopy, int>();
+
+  auto nmnc = inj.create<NoMoveNoCopy>();
+  EXPECT_EQ(MAGIC, nmnc.i_);
+}
