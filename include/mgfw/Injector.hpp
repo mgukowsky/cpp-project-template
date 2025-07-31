@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mgfw/SyncCell.hpp"
 #include "mgfw/TypeHash.hpp"
 #include "mgfw/TypeMap.hpp"
 #include "mgfw/TypeString.hpp"
@@ -10,6 +11,7 @@
 #include <format>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <type_traits>
@@ -76,13 +78,15 @@ public:
   void add_recipe(RecipeFn_t &&recipe) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
-    if(recipeMap_.contains(hsh)) {
+    auto state = stateCell_.get_locked();
+
+    if(state->recipeMap_.contains(hsh)) {
       throw std::runtime_error(
         std::format("Injector::add_recipe invoked for type {}, but a recipe was already added",
                     mgfw::TypeString<T>));
     }
 
-    recipeMap_.emplace(
+    state->recipeMap_.emplace(
       hsh,
       std::make_pair(RecipeType_t::CONCRETE,
                      std::make_any<Recipe_t<T>>([recipe](Injector &inj) { return recipe(inj); })));
@@ -98,13 +102,15 @@ public:
   void bind_impl() {
     constexpr auto hsh = mgfw::TypeHash<Iface_t>;
 
-    if(recipeMap_.contains(hsh)) {
+    auto state = stateCell_.get_locked();
+
+    if(state->recipeMap_.contains(hsh)) {
       throw std::runtime_error(
         std::format("Injector::bind_impl invoked for type {}, but a recipe was already added",
                     mgfw::TypeString<Iface_t>));
     }
 
-    recipeMap_.emplace(
+    state->recipeMap_.emplace(
       hsh,
       std::make_pair(RecipeType_t::INTERFACE,
                      std::make_any<IfaceRecipe_t<Iface_t>>(
@@ -124,6 +130,8 @@ public:
   T &get() {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
+    auto state = stateCell_.get_locked();
+
     // Asking for an instance of this class is an identity function.
     if constexpr(hsh == TypeHash<Injector>) {
       return *this;
@@ -132,8 +140,8 @@ public:
     // code for make_dependency_<AbstractClass>() and typeMap_.get_ref<AbstractClass>(), neither
     // of which would compile
     else if constexpr(std::is_abstract_v<T>) {
-      auto iter = recipeMap_.find(hsh);
-      if(iter != recipeMap_.end()) {
+      auto iter = state->recipeMap_.find(hsh);
+      if(iter != state->recipeMap_.end()) {
         auto &[recipeType, recipeFn] = iter->second;
         if(recipeType != RecipeType_t::INTERFACE) {
           throw std::runtime_error(
@@ -152,19 +160,19 @@ public:
       }
     }
     else {
-      auto optionalRef = typeMap_.find<T>();
+      auto optionalRef = state->typeMap_.find<T>();
       if(!optionalRef.has_value()) {
         // It's possible that we want to return a non-abstract interface type that was set up with
         // bind-impl. If this is the case then there won't be an entry in the type map, but we still
         // want to invoke the recipe and return the reference to the interface.
-        auto iter = recipeMap_.find(hsh);
+        auto iter = state->recipeMap_.find(hsh);
 
         // Awkward naming, but iter->second is the pair of [recipeType, recipeFn]
-        if(iter != recipeMap_.end() && iter->second.first == RecipeType_t::INTERFACE) {
+        if(iter != state->recipeMap_.end() && iter->second.first == RecipeType_t::INTERFACE) {
           return std::any_cast<IfaceRecipe_t<T>>(iter->second.second)(*this);
         }
         else {
-          return typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
+          return state->typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE));
         }
       }
 
@@ -235,24 +243,26 @@ private:
   T make_dependency_(const DepType_t depType) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
-    if(typeHashStack_.contains(hsh)) {
+    auto state = stateCell_.get_locked();
+
+    if(state->typeHashStack_.contains(hsh)) {
       throw std::runtime_error(
         std::format("Dependency cycle detected for type {}", mgfw::TypeString<T>));
     }
 
-    typeHashStack_.insert(hsh);
+    state->typeHashStack_.insert(hsh);
 
     // Use `defer` to run this code to pop off the stack after we've returned
-    const mgfw::defer deferred([&] { typeHashStack_.erase(hsh); });
+    const mgfw::defer deferred([&] { state->typeHashStack_.erase(hsh); });
 
     // If we're not calling with create(), then we're creating the instance being placed in the
     // type map, so record when it was instantiated.
     if(depType != DepType_t::NEW_VALUE) {
-      instantiationList_.push_back(hsh);
+      state->instantiationList_.push_back(hsh);
     }
 
-    auto iter = recipeMap_.find(hsh);
-    if(iter != recipeMap_.end()) {
+    auto iter = state->recipeMap_.find(hsh);
+    if(iter != state->recipeMap_.end()) {
       auto &[recipeType, recipeFn] = iter->second;
       if(recipeType != RecipeType_t::CONCRETE) {
         throw std::runtime_error(std::format(
@@ -275,30 +285,35 @@ private:
     }
   }
 
-  /**
-   * Tracks the order in which instances are created in the typeMap_; used to ensure that
-   * dependencies are destroyed in the correct order, i.e. we destroy the dependencies in the
-   * reverse order in which they are created to ensure we don't destroy a dependency before its
-   * dependent(s).
-   */
-  std::vector<mgfw::Hash_t> instantiationList_;
+  struct State_ {
+    /**
+     * Tracks the order in which instances are created in the typeMap_; used to ensure that
+     * dependencies are destroyed in the correct order, i.e. we destroy the dependencies in the
+     * reverse order in which they are created to ensure we don't destroy a dependency before its
+     * dependent(s).
+     */
+    std::vector<mgfw::Hash_t> instantiationList_;
 
-  /**
-   * Functions used to create new instances of types
-   */
-  std::map<mgfw::Hash_t, std::pair<RecipeType_t, std::any>> recipeMap_;
+    /**
+     * Functions used to create new instances of types
+     */
+    std::map<mgfw::Hash_t, std::pair<RecipeType_t, std::any>> recipeMap_;
 
-  /**
-   * Tracks the types that are currently being injected; used to detect cycles. Though we use this
-   * as a stack, we choose a set since we'll be searching it frequently and won't have duplicate
-   * entries.
-   */
-  std::set<mgfw::Hash_t> typeHashStack_;
+    /**
+     * Tracks the types that are currently being injected; used to detect cycles. Though we use this
+     * as a stack, we choose a set since we'll be searching it frequently and won't have duplicate
+     * entries.
+     */
+    std::set<mgfw::Hash_t> typeHashStack_;
 
-  /**
-   * Contains cached instances of given types
-   */
-  mgfw::TypeMap typeMap_;
+    /**
+     * Contains cached instances of given types
+     */
+    mgfw::TypeMap typeMap_;
+  };
+
+  // N.B. that we need the recursive mutex given the recursive nature of dependency injection.
+  SyncCell<State_, std::recursive_mutex> stateCell_;
 };
 
 }  // namespace mgfw
