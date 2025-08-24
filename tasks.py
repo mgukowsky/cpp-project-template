@@ -9,6 +9,8 @@ from invoke import Context, task
 
 NPROC = os.cpu_count()
 
+def boldprint(msg: str) -> None:
+    print(f"🚧\033[1m\033[32m{msg}\033[0m")
 
 def crun(context, cmd):
     context.run(cmd, echo=True, pty=True)
@@ -34,7 +36,10 @@ def link_ccdb(preset: str):
 
 @task
 def build(c: Context, preset: str = default_toolchain()):
-    crun(c, f"cmake --preset {preset} && cmake --build --preset {preset}")
+    """
+    Build only; use `workflow` to configure and test.
+    """
+    crun(c, f"cmake --build --preset {preset}")
     link_ccdb(preset)
 
 
