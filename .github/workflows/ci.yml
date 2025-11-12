@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - gcc_debug
+          - clang_debug
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install Python dependencies
+      run: pip install invoke
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          gcc \
+          g++ \
+          clang \
+          lld
+
+    - name: Build and test (${{ matrix.preset }})
+      run: invoke workflow --preset=${{ matrix.preset }}
+
+    - name: Upload build artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ matrix.preset }}
+        path: build/${{ matrix.preset }}/
+        retention-days: 7
