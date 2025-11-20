@@ -2,10 +2,54 @@
 
 #include <gtest/gtest.h>
 
+#include <concepts>
+#include <condition_variable>
+#include <functional>
 #include <future>
+#include <mutex>
 #include <thread>
 
 using mgfw::SyncCell;
+
+TEST(SyncCellTest, IsCondvarConcept) {
+  {
+    // gtest seems to be unhappy with us passing the concept directly into EXPECT_*
+    const auto conceptResult = mgfw::
+      is_condvar<std::condition_variable, std::unique_lock<std::mutex>, std::function<bool(void)>>;
+    EXPECT_TRUE(conceptResult);
+  }
+
+  {
+    const auto conceptResult =
+      mgfw::is_condvar<std::condition_variable_any, std::mutex, std::function<bool(void)>>;
+    EXPECT_TRUE(conceptResult);
+  }
+
+  {
+    // Invalid CV type
+    const auto conceptResult = mgfw::is_condvar<int, std::mutex, std::function<bool(void)>>;
+    EXPECT_FALSE(conceptResult);
+  }
+
+  {
+    // Invalid predicate type
+    const auto conceptResult =
+      mgfw::is_condvar<std::condition_variable, std::mutex, std::function<void(void)>>;
+    EXPECT_FALSE(conceptResult);
+  }
+}
+
+TEST(SyncCellTest, ScopedProxyLockTypeProperties) {
+  using ProxyLock_t = SyncCell<int>::ScopedProxyLock;
+
+  EXPECT_FALSE(std::copy_constructible<ProxyLock_t>)
+    << "ScopedProxyLock should not be copyable b/c its contents shouldn't be able to escape the "
+       "scope where it is created";
+
+  EXPECT_FALSE(std::move_constructible<ProxyLock_t>)
+    << "ScopedProxyLock should not be moveable b/c its contents shouldn't be able to escape the "
+       "scope where it is created";
+}
 
 TEST(SyncCellTest, UnlocksOnDestruction) {
   SyncCell<int> mtx(10);
