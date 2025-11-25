@@ -54,42 +54,41 @@ public:
 
   ~SyncCell() = default;
 
-  SyncCell(const SyncCell &other)
-    // Use IIFE to ensure we lock the other instance before copying it. If we didn't do this, then
-    // we would have to default construct this->instance_ in the initializer list (and have to
-    // require that SyncCell's T be default constructible) and then copy construct it in the body.
-    : instance_([&] {
-        std::unique_lock<Lock_t> otherLock(other.lock_);
-        return other.instance_;
-      }()) { }
+  SyncCell(const SyncCell &other) : instance_(*(other.get_locked())) { }
 
   SyncCell &operator=(const SyncCell &other) {
     if(&other != this) {
-      std::unique_lock<Lock_t> thisLock(this->lock_);
-      std::unique_lock<Lock_t> otherLock(other.lock_);
-      this->instance_ = other.instance_;
+      // In this case we need to lock _both_ before we move from one to the other
+      auto thisState  = this->get_locked();
+      auto otherState = other.get_locked();
+
+      *thisState = *otherState;
     }
+
+    return *this;
   }
 
-  // NOLINTBEGIN
-  SyncCell(SyncCell &&other) noexcept
-    : instance_([&](SyncCell &&otherInner) {
-        std::unique_lock<Lock_t> otherLock(otherInner.lock_);
-        return otherInner.instance_;
-      }(std::move(other))) { }
-
-  // NOLINTEND
+  // N.B. the mutex will be new, but we will move the rest of the state from the other instance
+  SyncCell(SyncCell &&other) noexcept : instance_(std::move(*(other.get_locked()))) { }
 
   SyncCell &operator=(SyncCell &&other) noexcept {
     if(&other != this) {
-      std::unique_lock<Lock_t> thisLock(this->lock_);
-      std::unique_lock<Lock_t> otherLock(other.lock_);
-      this->instance_ = std::move(other.instance_);
+      // In this case we need to lock _both_ before we move from one to the other
+      auto thisState  = this->get_locked();
+      auto otherState = other.get_locked();
+
+      *thisState = std::move(*otherState);
     }
+
+    return *this;
   }
 
   /**
    * Convenience method for std::condition_variable.
+   *
+   * Invokes the passed function as the condition variable predicate, and passes it a reference to
+   * the shared state. This is safe becaues the condvar API has to lock the mutex before calling the
+   * predicate.
    *
    * Parts of the std::condition_variable API require that a lock be passed in, and used with a
    * predicate function that assumes certain state is guarded by said lock. We opt for this
@@ -103,18 +102,19 @@ public:
    */
   template<typename Fn_t>
   // N.B. vanilla CV only works with std::mutex
-  requires std::is_invocable_r_v<bool, Fn_t> && std::is_same_v<std::mutex, Lock_t>
+  requires std::is_invocable_r_v<bool, Fn_t, const T &> && std::is_same_v<std::mutex, Lock_t>
   void cv_wait(std::condition_variable &condvar, Fn_t &&predicate) {
     std::unique_lock lck{lock_};
-    condvar.wait(lck, std::forward(predicate));
+    condvar.wait(lck, [&, pred = std::forward<Fn_t>(predicate)] { return pred(instance_); });
   }
 
   template<typename Fn_t>
   // N.B. vanilla CV only works with std::mutex
-  requires std::is_invocable_r_v<bool, Fn_t> && std::is_same_v<std::mutex, Lock_t>
-  bool cv_wait_until(std::condition_variable &condvar, Fn_t &&predicate, const TimePoint_t &&time) {
+  requires std::is_invocable_r_v<bool, Fn_t, const T &> && std::is_same_v<std::mutex, Lock_t>
+  bool cv_wait_until(std::condition_variable &condvar, const TimePoint_t time, Fn_t &&predicate) {
     std::unique_lock lck{lock_};
-    return condvar.wait_until(lck, std::move(time), std::forward(predicate));
+    return condvar.wait_until(
+      lck, std::move(time), [&, pred = std::forward<Fn_t>(predicate)] { return pred(instance_); });
   }
 
   [[nodiscard]] ScopedProxyLock get_locked() {

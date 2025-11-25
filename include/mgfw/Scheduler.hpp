@@ -2,12 +2,11 @@
 
 #include "mgfw/IClock.hpp"
 #include "mgfw/ILogger.hpp"
+#include "mgfw/SyncCell.hpp"
 #include "mgfw/types.hpp"
 
-#include <atomic>
 #include <condition_variable>
 #include <functional>
-#include <mutex>
 #include <set>
 
 namespace mgfw {
@@ -23,7 +22,7 @@ public:
   using JobFunc_t   = std::function<void()>;
 
   Scheduler(IClock &clock, ILogger &logger);
-  ~Scheduler() = default;
+  ~Scheduler();
 
   // In class declaration
   Scheduler(const Scheduler &)            = delete;
@@ -31,6 +30,8 @@ public:
 
   Scheduler(Scheduler &&other) noexcept;
   Scheduler &operator=(Scheduler &&other) noexcept;
+
+  void access_clock_sync(const std::function<void(IClock &)> &fn);
 
   /**
    * Stop a job by its ID. No effect if the job doesn't exist.
@@ -67,15 +68,15 @@ public:
   /**
    * Stop the scheduler. No effect if the scheduler is not running.
    */
-  void stop();
+  void request_stop();
 
 private:
   struct Job_ {
-    const JobHandle_t id;
-    TimePoint_t       deadline;
-    Duration_t        interval;  // 0 if not repeating
-    JobFunc_t         func;
-    std::string       desc;
+    JobHandle_t id;
+    TimePoint_t deadline;
+    Duration_t  interval;  // 0 if not repeating
+    JobFunc_t   func;
+    std::string desc;
   };
 
   static bool job_comparator_(const Job_ &lhs, const Job_ &rhs) noexcept;
@@ -85,17 +86,24 @@ private:
                         const bool       repeat,
                         std::string    &&desc);
 
-  IClock &clock_;
+  ILogger &logger_;
 
-  ILogger                 &logger_;
-  std::atomic_bool         running_;
-  std::atomic<JobHandle_t> nextId_;
+  using JobQueue_t_ = std::set<Job_, std::function<bool(const Job_ &, const Job_ &)>>;
 
-  // N.B. we're leveraging the properties of a std::set to use it as a priority queue. We can't
-  // use std::priority_queue b/c we need random access to cancel jobs.
-  std::set<Job_, std::function<bool(const Job_ &, const Job_ &)>> jobQueue_;
+  struct SyncState {
+    // The clock is checked in the CV's predicate, so accesses to it should be guarded by the same
+    // lock used for other bits of atomic state (esp. important for tests).
+    IClock &clock_;
 
-  std::mutex              mtx_;
+    bool        running_;
+    JobHandle_t nextId_;
+    // N.B. we're leveraging the properties of a std::set to use it as a priority queue. We can't
+    // use std::priority_queue b/c we need random access to cancel jobs.
+    JobQueue_t_ jobQueue_;
+  };
+
+  SyncCell<SyncState> syncState_;
+
   std::condition_variable cv_;
 };
 

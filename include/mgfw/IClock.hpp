@@ -6,7 +6,12 @@ namespace mgfw {
 
 class IClock {
 public:
-  virtual ~IClock() = default;
+  IClock()                          = default;
+  virtual ~IClock()                 = default;
+  IClock(const IClock &)            = default;
+  IClock(IClock &&)                 = default;
+  IClock &operator=(const IClock &) = default;
+  IClock &operator=(IClock &&)      = default;
 
   virtual TimePoint_t now() const noexcept = 0;
 
