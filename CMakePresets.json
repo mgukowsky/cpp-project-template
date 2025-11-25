@@ -46,6 +46,33 @@
         "CMAKE_CXX_COMPILER": "cl",
         "CMAKE_LINKER_TYPE": "MSVC"
       }
+    },
+    {
+      "name": "gcc_tsan",
+      "inherits": "gcc_debug",
+      "displayName": "GCC Debug (ThreadSanitizer)",
+      "description": "Debug build using the GCC toolchain with ThreadSanitizer",
+      "cacheVariables": {
+        "SANITIZER_TYPE": "thread"
+      }
+    },
+    {
+      "name": "clang_tsan",
+      "inherits": "clang_debug",
+      "displayName": "Clang Debug (ThreadSanitizer)",
+      "description": "Debug build using the Clang toolchain with ThreadSanitizer",
+      "cacheVariables": {
+        "SANITIZER_TYPE": "thread"
+      }
+    },
+    {
+      "name": "msvc_tsan",
+      "inherits": "msvc_debug",
+      "displayName": "MSVC Debug (ThreadSanitizer)",
+      "description": "Debug build using the MSVC toolchain with ThreadSanitizer",
+      "cacheVariables": {
+        "SANITIZER_TYPE": "thread"
+      }
     }
   ],
   "buildPresets": [
@@ -63,6 +90,21 @@
       "name": "msvc_debug",
       "inherits": "gcc_debug",
       "configurePreset": "msvc_debug"
+    },
+    {
+      "name": "gcc_tsan",
+      "configurePreset": "gcc_tsan",
+      "verbose": true
+    },
+    {
+      "name": "clang_tsan",
+      "inherits": "gcc_tsan",
+      "configurePreset": "clang_tsan"
+    },
+    {
+      "name": "msvc_tsan",
+      "inherits": "gcc_tsan",
+      "configurePreset": "msvc_tsan"
     }
   ],
   "testPresets": [
@@ -93,6 +135,21 @@
       "name": "msvc_debug",
       "inherits": "gcc_debug",
       "configurePreset": "msvc_debug"
+    },
+    {
+      "name": "gcc_tsan",
+      "inherits": "gcc_debug",
+      "configurePreset": "gcc_tsan"
+    },
+    {
+      "name": "clang_tsan",
+      "inherits": "gcc_debug",
+      "configurePreset": "clang_tsan"
+    },
+    {
+      "name": "msvc_tsan",
+      "inherits": "gcc_debug",
+      "configurePreset": "msvc_tsan"
     }
   ],
   "workflowPresets": [
@@ -144,6 +201,57 @@
         {
           "type": "test",
           "name": "msvc_debug"
+        }
+      ]
+    },
+    {
+      "name": "gcc_tsan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "gcc_tsan"
+        },
+        {
+          "type": "build",
+          "name": "gcc_tsan"
+        },
+        {
+          "type": "test",
+          "name": "gcc_tsan"
+        }
+      ]
+    },
+    {
+      "name": "clang_tsan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "clang_tsan"
+        },
+        {
+          "type": "build",
+          "name": "clang_tsan"
+        },
+        {
+          "type": "test",
+          "name": "clang_tsan"
+        }
+      ]
+    },
+    {
+      "name": "msvc_tsan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "msvc_tsan"
+        },
+        {
+          "type": "build",
+          "name": "msvc_tsan"
+        },
+        {
+          "type": "test",
+          "name": "msvc_tsan"
         }
       ]
     }

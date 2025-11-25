@@ -74,9 +74,11 @@ function(config_for_unix target_name)
       $<$<CXX_COMPILER_ID:Clang>:-fcolor-diagnostics>
       $<$<CXX_COMPILER_ID:Clang>:-Wimplicit-fallthrough>
       $<$<CXX_COMPILER_ID:Clang>:-Wno-string-conversion>
-      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>)
+      $<$<AND:$<CONFIG:Debug>,$<STREQUAL:${SANITIZER_TYPE},thread>>:-fsanitize=thread>
+      $<$<AND:$<CONFIG:Debug>,$<NOT:$<STREQUAL:${SANITIZER_TYPE},thread>>>:-fsanitize=address,leak,undefined>)
 
   target_link_options(${target_name} PUBLIC
-                      $<$<CONFIG:Debug>:-fsanitize=address,leak,undefined>)
+                      $<$<AND:$<CONFIG:Debug>,$<STREQUAL:${SANITIZER_TYPE},thread>>:-fsanitize=thread>
+                      $<$<AND:$<CONFIG:Debug>,$<NOT:$<STREQUAL:${SANITIZER_TYPE},thread>>>:-fsanitize=address,leak,undefined>)
 
 endfunction()
