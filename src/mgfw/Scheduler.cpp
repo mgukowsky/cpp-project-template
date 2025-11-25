@@ -1,7 +1,15 @@
 #include "mgfw/Scheduler.hpp"
 
+#include "mgfw/IClock.hpp"
+#include "mgfw/ILogger.hpp"
+#include "mgfw/types.hpp"
+
 #include <algorithm>
+#include <condition_variable>
 #include <format>
+#include <functional>
+#include <string>
+#include <utility>
 
 namespace mgfw {
 

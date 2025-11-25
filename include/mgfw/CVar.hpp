@@ -17,7 +17,7 @@ class CVar {
 public:
   using CVarCallback_t = std::function<void(const T &prevVal, const T &newVal)>;
 
-  CVar(std::string name, const T initialVal, std::string desc = "")
+  CVar(std::string name, const T &initialVal, std::string desc = "")
     : val_(std::move(initialVal)), name_(std::move(name)), desc_(std::move(desc)) { }
 
   const std::string &name() const { return name_; }

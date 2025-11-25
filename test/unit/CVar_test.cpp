@@ -2,30 +2,33 @@
 
 #include <gtest/gtest.h>
 
+#include <numbers>
 #include <string>
+
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
 using mgfw::CVar;
 
 // Construction and correct get
 TEST(CVarTest, ConstructAndGetInt) {
-  CVar<int> cvar("test_int", 42, "desc");
+  const CVar<int> cvar("test_int", 42, "desc");
   EXPECT_EQ(cvar.name(), "test_int");
   EXPECT_EQ(cvar.desc(), "desc");
   EXPECT_EQ(cvar.get(), 42);
 }
 
 TEST(CVarTest, ConstructAndGetDouble) {
-  CVar<double> cvar("test_double", 3.1415, "desc");
-  EXPECT_DOUBLE_EQ(cvar.get(), 3.1415);
+  const CVar<double> cvar("test_double", std::numbers::pi, "desc");
+  EXPECT_DOUBLE_EQ(cvar.get(), std::numbers::pi);
 }
 
 TEST(CVarTest, ConstructAndGetBool) {
-  CVar<bool> cvar("test_bool", true, "desc");
+  const CVar<bool> cvar("test_bool", true, "desc");
   EXPECT_EQ(cvar.get(), true);
 }
 
 TEST(CVarTest, ConstructAndGetString) {
-  CVar<std::string> cvar("test_str", std::string("hello"), "desc");
+  const CVar<std::string> cvar("test_str", std::string("hello"), "desc");
   EXPECT_EQ(cvar.get(), "hello");
 }
 
@@ -68,3 +71,5 @@ TEST(CVarTest, SkipCallbackIfValueIsUnchanged) {
   EXPECT_EQ(2000, i)
     << "on_change callbacks should be skipped if the value does not actually change";
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)

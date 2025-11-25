@@ -2,7 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <concepts>
+#include <stdexcept>
+#include <string>
 #include <string_view>
+#include <vector>
 
 using mgfw::Injector;
 
@@ -468,7 +472,7 @@ TEST_F(Injector_test, addRecipeAndCreateShouldSupportNonMoveableTypes) {
 
   class NoMoveNoCopy {
   public:
-    explicit NoMoveNoCopy([[maybe_unused]] int i) : i_{MAGIC} { }
+    explicit NoMoveNoCopy([[maybe_unused]] int i) { }
 
     ~NoMoveNoCopy()                               = default;
     NoMoveNoCopy(const NoMoveNoCopy &)            = delete;
@@ -476,7 +480,7 @@ TEST_F(Injector_test, addRecipeAndCreateShouldSupportNonMoveableTypes) {
     NoMoveNoCopy &operator=(const NoMoveNoCopy &) = delete;
     NoMoveNoCopy &operator=(NoMoveNoCopy &&)      = delete;
 
-    int i_;
+    int i_ = MAGIC;
   };
 
   inj.add_ctor_recipe<NoMoveNoCopy, int>();

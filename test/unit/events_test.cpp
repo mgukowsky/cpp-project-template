@@ -1,11 +1,13 @@
 #include "mgfw/EventReader.hpp"
 #include "mgfw/EventWriter.hpp"
+#include "mgfw/MessageQueue.hpp"
 #include "mgfw_test/LoggerMock.hpp"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <string>
+#include <vector>
 
 using mgfw::EventReader;
 using mgfw::EventWriter;

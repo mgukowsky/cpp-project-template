@@ -1,9 +1,11 @@
+#include "mgfw/IClock.hpp"
+#include "mgfw/ILogger.hpp"
+
+#include <bits/chrono.h>
 #include <mgfw/Clock.hpp>
 #include <mgfw/Injector.hpp>
 #include <mgfw/Scheduler.hpp>
 #include <mgfw/SpdlogLogger.hpp>
-
-#include <chrono>
 
 using mgfw::Clock;
 using mgfw::IClock;
@@ -14,6 +16,7 @@ using mgfw::SpdlogLogger;
 
 using namespace std::chrono_literals;
 
+// NOLINTBEGIN(bugprone-exception-escape)
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   Injector inj;
   inj.bind_impl<Clock, IClock>();
@@ -28,3 +31,5 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
 
   sched.run();
 }
+
+// NOLINTEND(bugprone-exception-escape)

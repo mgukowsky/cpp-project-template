@@ -1,9 +1,7 @@
 #pragma once
 
-#include <iostream>
 #include <string_view>
 #include <type_traits>
-#include <vector>
 
 namespace mgfw {
 
@@ -46,9 +44,9 @@ namespace detail_ {
    */
   template<typename T>
   consteval std::string_view metastring() {
-#if defined(__clang__)
+#ifdef __clang__
     return gccTypeString(std::string_view(__PRETTY_FUNCTION__), ']');
-#elif defined(__GNUC__)
+#elifdef __GNUC__
     return gccTypeString(std::string_view(__PRETTY_FUNCTION__));
 #elif defined(_MSC_VER)
     return msvcTypeString(__FUNCSIG__);

@@ -1,5 +1,7 @@
 #include "mgfw/Clock.hpp"
 
+#include "mgfw/types.hpp"
+
 #include <chrono>
 #include <thread>
 

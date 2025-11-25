@@ -1,5 +1,10 @@
 #include "mgfw/SpdlogLogger.hpp"
 
+#include "mgfw/ILogger.hpp"
+#include "spdlog/common.h"
+
+#include <string_view>
+
 #if defined(__GNUC__) || defined(__GNUG__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
@@ -25,7 +30,7 @@ namespace mgfw {
 SpdlogLogger::SpdlogLogger(const ILogger::LogLevel initialLevel)
   : logger_(spdlog::stdout_color_mt("app")) {
   // logger_->set_pattern("%D:%H:%M:%S:%f:%l : %v");
-  set_level(initialLevel);
+  SpdlogLogger::set_level(initialLevel);
 }
 
 SpdlogLogger::~SpdlogLogger() {

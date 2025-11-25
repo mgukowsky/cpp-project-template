@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <concepts>
 #include <condition_variable>
 #include <functional>
@@ -52,6 +53,7 @@ TEST(SyncCellTest, ScopedProxyLockTypeProperties) {
 }
 
 TEST(SyncCellTest, UnlocksOnDestruction) {
+  // NOLINTNEXTLINE
   SyncCell<int> mtx(10);
 
   std::promise<void>       step1;

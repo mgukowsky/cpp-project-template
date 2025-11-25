@@ -1,9 +1,13 @@
 #include "mgfw/MQHive.hpp"
 
+#include "mgfw/EventReader.hpp"
+#include "mgfw/EventWriter.hpp"
 #include "mgfw_test/LoggerMock.hpp"
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <stdexcept>
+#include <string>
 
 using mgfw::EventReader;
 using mgfw::EventWriter;

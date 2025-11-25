@@ -72,9 +72,9 @@ public:
 
 private:
   struct Job_ {
-    JobHandle_t id;
+    JobHandle_t id{};
     TimePoint_t deadline;
-    Duration_t  interval;  // 0 if not repeating
+    Duration_t  interval{};  // 0 if not repeating
     JobFunc_t   func;
     std::string desc;
   };

@@ -70,14 +70,17 @@ public:
   /**
    * Invoke a callback on each element in the queue, then empty the queue
    */
+  // NOLINTBEGIN(cppcoreguidelines-missing-std-forward)
   template<MessageDrainCallback<T> Callback_t>
   void drain(Callback_t &&callback) {
     assert(std::this_thread::get_id() == tid_);
     for(const auto &msg : messages_) {
-      std::forward<Callback_t>(callback)(msg);
+      callback(msg);
     }
     messages_.clear();
   }
+
+  // NOLINTEND(cppcoreguidelines-missing-std-forward)
 
 private:
   std::vector<T>  messages_;

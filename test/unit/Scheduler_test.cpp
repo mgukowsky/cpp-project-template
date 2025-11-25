@@ -1,16 +1,21 @@
 #include "mgfw/Scheduler.hpp"
 
+#include "gmock/gmock.h"
+#include "mgfw/IClock.hpp"
 #include "mgfw/types.hpp"
 #include "mgfw_test/ClockMock.hpp"
 #include "mgfw_test/LoggerMock.hpp"
 
+#include <bits/chrono.h>
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <chrono>
 #include <format>
 #include <future>
 #include <latch>
 #include <thread>
+#include <vector>
 
 using namespace std::chrono_literals;
 
@@ -78,7 +83,7 @@ TEST(SchedulerTest, CancelJobPreventsExecution) {
   sched.cancel_job(id);
 
   {
-    std::jthread t([&] { sched.run(); });
+    const std::jthread t([&] { sched.run(); });
 
     safe_set_clock(sched, 500ms);
     sched.get_cv().notify_all();
@@ -127,7 +132,7 @@ TEST(SchedulerTest, MultipleJobsExecuteInOrder) {
   safe_set_clock(sched, 500ms);
 
   {
-    std::jthread t([&] { sched.run(); });
+    const std::jthread t([&] { sched.run(); });
 
     allJobDoneLatch.wait();
 
@@ -177,7 +182,7 @@ TEST(SchedulerTest, DoNowRunsImmediately) {
   LoggerMock log;
   Scheduler  sched(clk, log);
 
-  std::vector<int> order;
+  std::vector<int> const order;
 
   const int MAGIC = 42;
   int       i     = 0;
@@ -214,7 +219,7 @@ TEST(SchedulerTest, SetTimeoutExecutesAfterDelay) {
   });
 
   {
-    std::jthread t([&] { sched.run(); });
+    std::jthread const t([&] { sched.run(); });
 
     step1.get_future().wait();
     sched.request_stop();
@@ -225,7 +230,7 @@ TEST(SchedulerTest, SetTimeoutExecutesAfterDelay) {
 
   safe_set_clock(sched, 151ms);
 
-  std::jthread t([&] { sched.run(); });
+  std::jthread const t([&] { sched.run(); });
   step3.get_future().wait();
 
   EXPECT_TRUE(onStep3);
@@ -249,7 +254,7 @@ TEST(SchedulerTest, DoNowExecutesImmediately) {
     step2.get_future().wait();
   });
 
-  std::jthread t([&] { sched.run(); });
+  std::jthread const t([&] { sched.run(); });
 
   step1.get_future().wait();
 
@@ -303,7 +308,7 @@ TEST(SchedulerTest, SetIntervalExecutesRepeatedly) {
   sched.set_interval(
     50ms,
     [&] {
-      int cnt = call_count.fetch_add(1);
+      int const cnt = call_count.fetch_add(1);
       switch(cnt) {
         case 0:
           sched.do_now([&] {
@@ -332,7 +337,7 @@ TEST(SchedulerTest, SetIntervalExecutesRepeatedly) {
   {
     safe_set_clock(sched, 150ms);
 
-    std::jthread t([&] { sched.run(); });
+    std::jthread const t([&] { sched.run(); });
     step1.get_future().wait();
 
     safe_set_clock(sched, 200ms);
