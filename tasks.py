@@ -44,7 +44,7 @@ def lint(c: Context, fix: bool = False, cppcheck: bool = False):
         ccjson = json.load(f)
 
     # strip out 3rd-party files we don't want to analyze
-    ccs = [cc for cc in ccjson if "/_deps/" not in cc["file"]]
+    ccs = [cc for cc in ccjson if not re.match("/_deps/|.*\\.cache", cc["file"])]
 
     outdir = tempfile.mkdtemp()
     with open(f"{outdir}/compile_commands.json", "w") as outf:
