@@ -66,6 +66,16 @@ def lint(c: Context, fix: bool = False, cppcheck: bool = False):
         shutil.rmtree(outdir, ignore_errors=True)
 
 
+@task
+def run(c: Context):
+    ccpath = "./compile_commands.json"
+    if os.path.islink(ccpath):
+        binpath = os.path.dirname(os.readlink(ccpath))
+        crun(c, f"{binpath}/MYPROJ")
+    else:
+        print(f"{ccpath} not found!")
+
+
 @task(default=True)
 def workflow(c: Context, preset: str = default_toolchain(), coverage=False):
     crun(c, f"cmake --workflow --preset {preset}")
