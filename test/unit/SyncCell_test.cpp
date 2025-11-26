@@ -92,3 +92,28 @@ TEST(SyncCellTest, UnlocksOnDestruction) {
 
   t1.join();
 }
+
+TEST(SyncCellTest, transact) {
+  struct S {
+    int   i;
+    float f;
+  };
+
+  constexpr int   INIT_INT   = 123;
+  constexpr int   NEXT_INT   = 678;
+  constexpr float INIT_FLOAT = 4.5;
+
+  SyncCell<S> syncCell{INIT_INT, INIT_FLOAT};
+
+  // N.B. that different return types for `transact` can be deduced based on the callable that's
+  // passed in
+  EXPECT_EQ(INIT_INT, syncCell.transact([](S &s) -> int { return s.i; }));
+  EXPECT_EQ(INIT_FLOAT, syncCell.transact([](S &s) { return s.f; }));
+
+  // Mutate state, and works with a func that returns void
+  syncCell.transact([](S &s) { s.i = NEXT_INT; });
+  EXPECT_EQ(NEXT_INT, syncCell.transact([](S &s) -> int { return s.i; }));
+
+  // Funcs that return a ref won't compile
+  // int &ri = syncCell.transact([](S &s) -> int & { return s.i; });
+}

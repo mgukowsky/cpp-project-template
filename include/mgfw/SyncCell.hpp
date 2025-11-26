@@ -121,6 +121,16 @@ public:
     return ScopedProxyLock(std::unique_lock<Lock_t>(lock_), instance_);
   }
 
+  template<typename Callable_t>
+  requires std::invocable<Callable_t, T &>
+  std::invoke_result_t<Callable_t, T &> transact(const Callable_t &fn) {
+    static_assert(!std::is_lvalue_reference_v<std::invoke_result_t<Callable_t, T &>>,
+                  "SyncCell::transact shouldn't return a reference, as this could imply that "
+                  "access to the protected atomic state is leaking out");
+    std::scoped_lock lck(lock_);
+    return fn(instance_);
+  }
+
 private:
   T              instance_;
   mutable Lock_t lock_;
