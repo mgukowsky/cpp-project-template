@@ -193,7 +193,42 @@ TEST_F(Injector_test, simpleCtorRecipe) {
     << "Injector::add_ctor_recipe should call Injector::get for pointers";
 }
 
-TEST_F(Injector_test, bind_impl) {
+TEST_F(Injector_test, specificInstanceCtorRecipe) {
+  Injector inj;
+
+  struct Dep { };
+
+  struct S1 {
+    explicit S1(Dep &dep) : dep_(dep) { }
+
+    Dep &dep_;
+  };
+
+  struct S2 {
+    explicit S2(Dep &dep) : dep_(dep) { }
+
+    Dep &dep_;
+  };
+
+  struct S3 {
+    explicit S3(Dep &dep) : dep_(dep) { }
+
+    Dep &dep_;
+  };
+
+  inj.add_ctor_recipe<S1, Injector::Token<Dep, 1>>();
+  inj.add_ctor_recipe<S2, Injector::Token<Dep, 2>>();
+  inj.add_ctor_recipe<S3, Injector::Token<Dep, 1>>();
+
+  const auto &s1ref = inj.get<S1>();
+  const auto &s2ref = inj.get<S2>();
+  const auto &s3ref = inj.get<S3>();
+
+  EXPECT_NE(&(s1ref.dep_), &(s2ref.dep_));
+  EXPECT_EQ(&(s1ref.dep_), &(s3ref.dep_));
+}
+
+TEST_F(Injector_test, bin_impl) {
   class Base {
   public:
     virtual std::string_view get_str() { return "BASE"; }

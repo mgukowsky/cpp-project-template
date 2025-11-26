@@ -6,10 +6,30 @@
 #include <cassert>
 #include <concepts>
 #include <functional>
-#include <map>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <utility>
+
+using InstanceId_t = mgfw::S32;
+
+static constexpr InstanceId_t DEFAULT_INSTANCE_ID = -1;
+
+struct MapKey {
+  const mgfw::Hash_t hsh{};
+  const InstanceId_t instanceId{};
+
+  bool operator==(const MapKey &other) const {
+    return this->hsh == other.hsh && this->instanceId == other.instanceId;
+  }
+};
+
+template<>
+struct std::hash<MapKey> {
+  std::size_t operator()(const MapKey &k) const {
+    return ((std::hash<mgfw::Hash_t>()(k.hsh) ^ (hash<InstanceId_t>()(k.instanceId) << 1U)) >> 1U);
+  }
+};
 
 namespace mgfw {
 
@@ -64,13 +84,17 @@ private:
  */
 class TypeMap {
 public:
-  bool contains(const mgfw::Hash_t hsh) const noexcept { return map_.contains(hsh); }
+  bool contains(const mgfw::Hash_t hsh,
+                const InstanceId_t instanceId = DEFAULT_INSTANCE_ID) const noexcept {
+    return map_.contains({hsh, instanceId});
+  }
 
   template<typename T>
-  std::optional<std::reference_wrapper<T>> find() {
+  std::optional<std::reference_wrapper<T>> find(
+    const InstanceId_t instanceId = DEFAULT_INSTANCE_ID) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
-    auto it = map_.find(hsh);
+    auto it = map_.find({hsh, instanceId});
 
     if(it == map_.end()) {
       return std::nullopt;
@@ -83,7 +107,7 @@ public:
    * Creates an instance of type T and places it in the map. args are passed
    * to T's constructor.
    */
-  template<typename T, typename... Args>
+  template<typename T, InstanceId_t instanceId = DEFAULT_INSTANCE_ID, typename... Args>
   T &emplace(Args &&...args) {
     constexpr auto hsh = TypeHash<T>;
 
@@ -92,8 +116,8 @@ public:
      * the args to try_emplace by themselves, as the map would not know which type of
      * container to create.
      */
-    auto [iter, success] =
-      map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<Args>(args)...));
+    auto [iter, success] = map_.emplace(
+      MapKey{hsh, instanceId}, std::make_unique<TypeContainer<T>>(std::forward<Args>(args)...));
 
     if(!success) {
       throw std::runtime_error(std::format(
@@ -104,11 +128,11 @@ public:
   }
 
   template<typename T>
-  T &insert(T &&val) {
+  T &insert(T &&val, const InstanceId_t instanceId = DEFAULT_INSTANCE_ID) {
     constexpr auto hsh = TypeHash<T>;
 
-    auto [iter, success] =
-      map_.emplace(hsh, std::make_unique<TypeContainer<T>>(std::forward<T>(val)));
+    auto [iter, success] = map_.emplace(MapKey{hsh, instanceId},
+                                        std::make_unique<TypeContainer<T>>(std::forward<T>(val)));
 
     if(!success) {
       throw std::runtime_error(std::format(
@@ -118,17 +142,20 @@ public:
     return extract_from_ctr_base<T>(*(iter->second.get()));
   }
 
-  void erase(const mgfw::Hash_t hsh) { map_.erase(hsh); }
+  void erase(const mgfw::Hash_t hsh, const InstanceId_t instanceId) {
+    map_.erase({hsh, instanceId});
+  }
 
   /**
    * Retrieve a reference to the type T in the map, throwing if it does not exist
    */
-  template<typename T>
+  template<typename T, InstanceId_t instanceId = DEFAULT_INSTANCE_ID>
   T &get_ref() {
-    constexpr auto hsh = mgfw::TypeHash<T>;
-    assert(map_.contains(hsh) || "get_ref<T>() called without T in map_");
+    constexpr auto   hsh = mgfw::TypeHash<T>;
+    constexpr MapKey mapKey{hsh, instanceId};
+    assert(map_.contains(mapKey) || "get_ref<T>() called without T in map_");
 
-    return extract_from_ctr_base<T>(*(map_.at(hsh).get()));
+    return extract_from_ctr_base<T>(*(map_.at(mapKey).get()));
   }
 
 private:
@@ -144,7 +171,7 @@ private:
     return reinterpret_cast<TypeContainer<T> &>(pContainerBase).get();
   }
 
-  std::map<mgfw::Hash_t, std::unique_ptr<TypeContainerBase>> map_;
+  std::unordered_map<MapKey, std::unique_ptr<TypeContainerBase>> map_;
 };
 
 }  // namespace mgfw
