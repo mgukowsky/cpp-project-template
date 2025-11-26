@@ -39,6 +39,10 @@ SpdlogLogger::~SpdlogLogger() {
   }
 }
 
+// spdlog trips this lint check... but it's 3rd party and we're using the API correctly so we don't
+// care
+
+// NOLINTBEGIN(clang-analyzer-optin.cplusplus.UninitializedObject)
 void SpdlogLogger::critical(std::string_view msg) {
   logger_->critical(FMTSTR, colorize_string(terminal_color::bright_magenta, msg));
 }
@@ -59,9 +63,11 @@ void SpdlogLogger::debug(std::string_view msg) {
   logger_->debug(FMTSTR, colorize_string(terminal_color::bright_white, msg));
 }
 
-void SpdlogLogger::trace(std::string_view msg) {
+void SpdlogLogger::trace([[maybe_unused]] std::string_view msg) {
   logger_->trace(FMTSTR, colorize_string(terminal_color::white, msg));
 }
+
+// NOLINTEND(clang-analyzer-optin.cplusplus.UninitializedObject)
 
 void SpdlogLogger::set_level(ILogger::LogLevel level) {
   switch(level) {

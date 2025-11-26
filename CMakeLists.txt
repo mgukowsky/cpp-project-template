@@ -26,9 +26,9 @@ cpmaddpackage(
   GITHUB_REPOSITORY
   gabime/spdlog
   GIT_TAG
-  v1.15.3
+  v1.16.0
   VERSION
-  v1.15.3
+  v1.16.0
   GIT_PROGRESS
   TRUE
 )
