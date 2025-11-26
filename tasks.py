@@ -39,7 +39,9 @@ def build(c: Context, preset: str = default_toolchain()):
 
 
 @task
-def lint(c: Context, fix: bool = False, cppcheck: bool = False):
+def lint(
+    c: Context, fix: bool = False, cppcheck: bool = False, source_filter: str = ""
+):
     with open("compile_commands.json", "r") as f:
         ccjson = json.load(f)
 
@@ -53,7 +55,7 @@ def lint(c: Context, fix: bool = False, cppcheck: bool = False):
     try:
         crun(
             c,
-            f"run-clang-tidy '-header-filter=include/mgfw' -use-color -j{NPROC} -p {outdir} {"-fix -format" if fix else ""}",
+            f"run-clang-tidy '-header-filter=include/mgfw' '{f"-source-filter=.*{source_filter}.*" if source_filter != "" else ""}' -use-color -j{NPROC} -p {outdir} {"-fix -format" if fix else ""}",
         )
 
         # cppcheck is useful but a little too noisy for me to use by default

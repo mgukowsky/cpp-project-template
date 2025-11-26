@@ -1,5 +1,7 @@
 #include "mgfw/Injector.hpp"
 
+#include "mgfw/TypeMap.hpp"
+
 #include <gtest/gtest.h>
 
 #include <concepts>

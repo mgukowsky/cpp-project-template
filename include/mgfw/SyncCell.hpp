@@ -127,6 +127,8 @@ public:
     static_assert(!std::is_lvalue_reference_v<std::invoke_result_t<Callable_t, T &>>,
                   "SyncCell::transact shouldn't return a reference, as this could imply that "
                   "access to the protected atomic state is leaking out");
+
+    // NOLINTNEXTLINE(misc-const-correctness)
     std::scoped_lock lck(lock_);
     return fn(instance_);
   }

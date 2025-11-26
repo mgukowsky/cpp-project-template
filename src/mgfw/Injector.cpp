@@ -1,6 +1,6 @@
 #include "mgfw/Injector.hpp"
 
-#include "mgfw/fnv1a.hpp"
+#include "mgfw/TypeMap.hpp"
 
 #include <algorithm>
 #include <ranges>
