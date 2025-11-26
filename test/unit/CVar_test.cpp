@@ -38,7 +38,8 @@ TEST(CVarTest, SetSameType) {
   cvar.set(42);
   EXPECT_EQ(cvar.get(), 42);
 
-  CVar<std::string> cvar2("test2", std::string("foo"));
+  const std::string foo = "foo";
+  CVar<std::string> cvar2("test2", foo);
   cvar2.set("bar");
   EXPECT_EQ(cvar2.get(), "bar");
 }
