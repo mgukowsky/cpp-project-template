@@ -56,13 +56,13 @@ public:
    * 'Recipes' are functions that return a new instance of type T.
    */
   template<typename T>
-  using Recipe_t = std::function<T(Injector &)>;
+  using Recipe_t = std::function<T(Injector &, const InstanceId_t)>;
 
   /**
    * Recipes for interface (abstract) types can _only_ return a reference
    */
   template<typename T>
-  using IfaceRecipe_t = std::function<T &(Injector &)>;
+  using IfaceRecipe_t = std::function<T &(Injector &, const InstanceId_t)>;
 
   Injector() = default;
 
@@ -88,7 +88,7 @@ public:
     //               "Injector::add_ctor_recipe<T, ...Ts> will only accept Ts if T has a constructor
     //               " "that accepts the arguments (Ts...)");
 
-    auto recipe = [](Injector &injector) {
+    auto recipe = [](Injector &injector, [[maybe_unused]] const InstanceId_t) {
       return T(injector.ctor_arg_dispatcher_<Args>(injector)...);
     };
     add_recipe<T>(recipe);
@@ -98,7 +98,7 @@ public:
   // copy the recipe into the lambda that will be used later
   // NOLINTBEGIN
   template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
-  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &>
+  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &, InstanceId_t>
   void add_recipe(RecipeFn_t &&recipe) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
@@ -112,8 +112,11 @@ public:
 
     state->recipeMap_.emplace(
       hsh,
-      std::make_pair(RecipeType_t::CONCRETE,
-                     std::make_any<Recipe_t<T>>([recipe](Injector &inj) { return recipe(inj); })));
+      std::make_pair(
+        RecipeType_t::CONCRETE,
+        std::make_any<Recipe_t<T>>([recipe](Injector &inj, const InstanceId_t instanceId) {
+          return recipe(inj, instanceId);
+        })));
   }
 
   // NOLINTEND
@@ -138,7 +141,9 @@ public:
       hsh,
       std::make_pair(RecipeType_t::INTERFACE,
                      std::make_any<IfaceRecipe_t<Iface_t>>(
-                       [](Injector &injector) -> Iface_t & { return injector.get<Impl_t>(); })));
+                       [](Injector &injector, const InstanceId_t instanceId) -> Iface_t & {
+                         return injector.get<Impl_t>(instanceId);
+                       })));
   }
 
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
@@ -176,7 +181,7 @@ public:
                         "and the recipe does not return a reference",
                         mgfw::TypeString<T>));
         }
-        return std::any_cast<IfaceRecipe_t<T>>(recipeFn)(*this);
+        return std::any_cast<IfaceRecipe_t<T>>(recipeFn)(*this, instanceId);
       }
       else {
         throw std::runtime_error(
@@ -196,7 +201,7 @@ public:
 
         // Awkward naming, but iter->second is the pair of [recipeType, recipeFn]
         if(iter != state->recipeMap_.end() && iter->second.first == RecipeType_t::INTERFACE) {
-          return std::any_cast<IfaceRecipe_t<T>>(iter->second.second)(*this);
+          return std::any_cast<IfaceRecipe_t<T>>(iter->second.second)(*this, instanceId);
         }
         else {
           return state->typeMap_.insert(make_dependency_<T>(DepType_t::REFERENCE, instanceId),
@@ -305,7 +310,7 @@ private:
           std::to_underlying(recipeType)));
       }
 
-      return std::any_cast<Recipe_t<T>>(recipeFn)(*this);
+      return std::any_cast<Recipe_t<T>>(recipeFn)(*this, instanceId);
     }
 
     if constexpr(std::default_initializable<T>) {

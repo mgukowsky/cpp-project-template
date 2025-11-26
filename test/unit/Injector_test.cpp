@@ -114,7 +114,7 @@ TEST_F(Injector_test, simpleRecipe) {
 
   constexpr int MAGIC = 42;
 
-  inj.add_recipe<int>([&]([[maybe_unused]] Injector &injArg) {
+  inj.add_recipe<int>([&](Injector &, const InstanceId_t) {
     ++i;
 
     return MAGIC;
@@ -261,7 +261,7 @@ TEST_F(Injector_test, bin_impl) {
 
   {
     int i = 0;
-    EXPECT_THROW(inj.add_recipe<Base>([&](Injector &) {
+    EXPECT_THROW(inj.add_recipe<Base>([&](Injector &, const InstanceId_t) {
       ++i;
       return Base();
     }),
