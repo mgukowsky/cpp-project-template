@@ -11,26 +11,6 @@
 #include <unordered_map>
 #include <utility>
 
-using InstanceId_t = mgfw::S32;
-
-static constexpr InstanceId_t DEFAULT_INSTANCE_ID = -1;
-
-struct MapKey {
-  const mgfw::Hash_t hsh{};
-  const InstanceId_t instanceId{};
-
-  bool operator==(const MapKey &other) const {
-    return this->hsh == other.hsh && this->instanceId == other.instanceId;
-  }
-};
-
-template<>
-struct std::hash<MapKey> {
-  std::size_t operator()(const MapKey &k) const {
-    return ((std::hash<mgfw::Hash_t>()(k.hsh) ^ (hash<InstanceId_t>()(k.instanceId) << 1U)) >> 1U);
-  }
-};
-
 namespace mgfw {
 
 // Container providing type erasure
@@ -84,6 +64,39 @@ private:
  */
 class TypeMap {
 public:
+  using InstanceId_t = mgfw::S32;
+
+  /**
+   * We use -1 as the default, since clients will want to use `enum`/`enum class` as instance IDs,
+   * and since the first value of the enum is 0 by default, we want to distinguish between the
+   * default instance and the instance corresponding to that first value in the enum.
+   */
+  static constexpr InstanceId_t DEFAULT_INSTANCE_ID = -1;
+
+  // Could also just use a tuple; this is a hair more descriptive
+  struct MapKey {
+    const mgfw::Hash_t hsh{};
+    const InstanceId_t instanceId{};
+
+    bool operator==(const MapKey &other) const {
+      return this->hsh == other.hsh && this->instanceId == other.instanceId;
+    }
+  };
+
+  // Stuff needed to use MapKey as the key in an unordered_map
+  struct MapKeyEqual {
+    bool operator()(const MapKey &lhs, const MapKey &rhs) const { return lhs == rhs; }
+  };
+
+  struct MapKeyHasher {
+    std::size_t operator()(const MapKey &k) const {
+      // TODO: this hash comes from a quick search; I have no idea if there is a better way to do
+      // this (i.e. an easy way with less likelihood of collisions)
+      return ((std::hash<mgfw::Hash_t>()(k.hsh) ^ (std::hash<InstanceId_t>()(k.instanceId) << 1U))
+              >> 1U);
+    }
+  };
+
   bool contains(const mgfw::Hash_t hsh,
                 const InstanceId_t instanceId = DEFAULT_INSTANCE_ID) const noexcept {
     return map_.contains({hsh, instanceId});
@@ -165,13 +178,14 @@ private:
   T &extract_from_ctr_base(TypeContainerBase &pContainerBase) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
-    assert(pContainerBase.identity() == hsh
-           || "extract_from_ctr_base<T> has an entry with a typehash != T");
+    if(!(pContainerBase.identity() == hsh)) {
+      throw std::runtime_error("extract_from_ctr_base<T> has an entry with a typehash != T");
+    }
 
     return reinterpret_cast<TypeContainer<T> &>(pContainerBase).get();
   }
 
-  std::unordered_map<MapKey, std::unique_ptr<TypeContainerBase>> map_;
+  std::unordered_map<MapKey, std::unique_ptr<TypeContainerBase>, MapKeyHasher, MapKeyEqual> map_;
 };
 
 }  // namespace mgfw

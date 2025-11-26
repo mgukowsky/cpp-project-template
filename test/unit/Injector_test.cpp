@@ -11,6 +11,7 @@
 #include <vector>
 
 using mgfw::Injector;
+using mgfw::TypeMap;
 
 namespace {
 
@@ -116,7 +117,7 @@ TEST_F(Injector_test, simpleRecipe) {
 
   constexpr int MAGIC = 42;
 
-  inj.add_recipe<int>([&](Injector &, const InstanceId_t) {
+  inj.add_recipe<int>([&](Injector &, const TypeMap::InstanceId_t) {
     ++i;
 
     return MAGIC;
@@ -230,7 +231,7 @@ TEST_F(Injector_test, specificInstanceCtorRecipe) {
   EXPECT_EQ(&(s1ref.dep_), &(s3ref.dep_));
 }
 
-TEST_F(Injector_test, bin_impl) {
+TEST_F(Injector_test, bind_impl) {
   class Base {
   public:
     virtual std::string_view get_str() { return "BASE"; }
@@ -263,7 +264,7 @@ TEST_F(Injector_test, bin_impl) {
 
   {
     int i = 0;
-    EXPECT_THROW(inj.add_recipe<Base>([&](Injector &, const InstanceId_t) {
+    EXPECT_THROW(inj.add_recipe<Base>([&](Injector &, const TypeMap::InstanceId_t) {
       ++i;
       return Base();
     }),
@@ -524,4 +525,73 @@ TEST_F(Injector_test, addRecipeAndCreateShouldSupportNonMoveableTypes) {
 
   auto nmnc = inj.create<NoMoveNoCopy>();
   EXPECT_EQ(MAGIC, nmnc.i_);
+}
+
+TEST_F(Injector_test, instanceIds) {
+  class DefaultCtorClass { };
+
+  Injector inj;
+
+  enum class IDs : mgfw::U8 { A, B };
+
+  const auto &defref = inj.get<DefaultCtorClass>();
+  const auto &aref1  = inj.get<DefaultCtorClass>(std::to_underlying(IDs::A));
+  const auto &aref2  = inj.get<DefaultCtorClass>(std::to_underlying(IDs::A));
+  const auto &bref   = inj.get<DefaultCtorClass>(std::to_underlying(IDs::B));
+
+  // Default ref is -1 so it doesn't overlap with the first member of an enum!
+  EXPECT_NE(&defref, &aref1);
+  EXPECT_NE(&defref, &aref2);
+  EXPECT_NE(&defref, &bref);
+
+  // Instances w/ diff IDs should be distint
+  EXPECT_NE(&aref1, &bref);
+  EXPECT_NE(&aref2, &bref);
+
+  // Same ID should be the same
+  EXPECT_EQ(&aref1, &aref2);
+}
+
+TEST_F(Injector_test, bind_impl_with_instanceIds) {
+  class Base {
+  public:
+    virtual std::string_view get_str() { return "BASE"; }
+
+    Base()                        = default;
+    Base(const Base &)            = default;
+    Base(Base &&)                 = default;
+    Base &operator=(const Base &) = default;
+    Base &operator=(Base &&)      = default;
+    virtual ~Base()               = default;
+  };
+
+  class Derived : public Base {
+  public:
+    std::string_view get_str() override { return "DERIVED"; }
+  };
+
+  Injector inj;
+  inj.bind_impl<Derived, Base>();
+
+  auto &defrefbase = inj.get<Base>();
+  auto &ref0baseA  = inj.get<Base>(0);
+  auto &ref0baseB  = inj.get<Base>(0);
+
+  // Default instance != instance 0!
+  EXPECT_NE(&defrefbase, &ref0baseA);
+  EXPECT_NE(&defrefbase, &ref0baseB);
+
+  // Same ID should yield same instance
+  EXPECT_EQ(&ref0baseA, &ref0baseB);
+
+  EXPECT_EQ("DERIVED", defrefbase.get_str())
+    << "Injector::get<Base> should respect Injector::bind_impl recipes added for Base";
+
+  // b/c the impl is bound to the iface, the iface and derived references should be the same, and
+  // respect instance Ids!
+  auto &defrefderived = inj.get<Derived>();
+  auto &ref0derived   = inj.get<Derived>(0);
+  EXPECT_EQ(&defrefbase, &defrefderived);
+  EXPECT_NE(&defrefderived, &ref0derived);
+  EXPECT_EQ(&ref0derived, &ref0baseA);
 }

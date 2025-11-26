@@ -36,13 +36,14 @@ struct get_token_type<T, std::void_t<decltype(T::MGFW_THIS_IS_THE_INSTANCE_TAG_)
 
 class Injector {
 public:
-  template<typename T, InstanceId_t instanceId>
+  // Utility class to indicate that a specific instance of a dependency is requested
+  template<typename T, TypeMap::InstanceId_t instanceId>
   struct Token {
     static constexpr auto MGFW_THIS_IS_THE_INSTANCE_TAG_ = 1;
 
     using Type_t = T;
 
-    static constexpr InstanceId_t INSTANCE_ID = instanceId;
+    static constexpr TypeMap::InstanceId_t INSTANCE_ID = instanceId;
   };
 
   /**
@@ -56,13 +57,13 @@ public:
    * 'Recipes' are functions that return a new instance of type T.
    */
   template<typename T>
-  using Recipe_t = std::function<T(Injector &, const InstanceId_t)>;
+  using Recipe_t = std::function<T(Injector &, const TypeMap::InstanceId_t)>;
 
   /**
    * Recipes for interface (abstract) types can _only_ return a reference
    */
   template<typename T>
-  using IfaceRecipe_t = std::function<T &(Injector &, const InstanceId_t)>;
+  using IfaceRecipe_t = std::function<T &(Injector &, const TypeMap::InstanceId_t)>;
 
   Injector() = default;
 
@@ -88,7 +89,7 @@ public:
     //               "Injector::add_ctor_recipe<T, ...Ts> will only accept Ts if T has a constructor
     //               " "that accepts the arguments (Ts...)");
 
-    auto recipe = [](Injector &injector, [[maybe_unused]] const InstanceId_t) {
+    auto recipe = [](Injector &injector, [[maybe_unused]] const TypeMap::InstanceId_t) {
       return T(injector.ctor_arg_dispatcher_<Args>(injector)...);
     };
     add_recipe<T>(recipe);
@@ -98,7 +99,7 @@ public:
   // copy the recipe into the lambda that will be used later
   // NOLINTBEGIN
   template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
-  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &, InstanceId_t>
+  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &, TypeMap::InstanceId_t>
   void add_recipe(RecipeFn_t &&recipe) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
@@ -114,7 +115,7 @@ public:
       hsh,
       std::make_pair(
         RecipeType_t::CONCRETE,
-        std::make_any<Recipe_t<T>>([recipe](Injector &inj, const InstanceId_t instanceId) {
+        std::make_any<Recipe_t<T>>([recipe](Injector &inj, const TypeMap::InstanceId_t instanceId) {
           return recipe(inj, instanceId);
         })));
   }
@@ -141,7 +142,7 @@ public:
       hsh,
       std::make_pair(RecipeType_t::INTERFACE,
                      std::make_any<IfaceRecipe_t<Iface_t>>(
-                       [](Injector &injector, const InstanceId_t instanceId) -> Iface_t & {
+                       [](Injector &injector, const TypeMap::InstanceId_t instanceId) -> Iface_t & {
                          return injector.get<Impl_t>(instanceId);
                        })));
   }
@@ -151,15 +152,14 @@ public:
   // the instance once and 'move' it out of the function
   requires(!std::is_abstract_v<T>)
   T create() {
-    if constexpr(isInjectorToken<T>) {
-      static_assert(false, "Injector::InstanceToken is not to be used with Injector::create()");
-    }
+    static_assert(!isInjectorToken<T>,
+                  "Injector::InstanceToken is not to be used with Injector::create()");
     return make_dependency_<T>(DepType_t::NEW_VALUE);
   }
 
   template<typename Raw_t, typename T = InjType_t<Raw_t>>
   requires std::is_abstract_v<T> || std::move_constructible<T>
-  T &get(const InstanceId_t instanceId = DEFAULT_INSTANCE_ID) {
+  T &get(const TypeMap::InstanceId_t instanceId = TypeMap::DEFAULT_INSTANCE_ID) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
     auto state = stateCell_.get_locked();
@@ -279,7 +279,8 @@ private:
    * default-construct an instance of T. If that fails, then we throw an exception.
    */
   template<typename T>
-  T make_dependency_(const DepType_t depType, const InstanceId_t instanceId = DEFAULT_INSTANCE_ID) {
+  T make_dependency_(const DepType_t             depType,
+                     const TypeMap::InstanceId_t instanceId = TypeMap::DEFAULT_INSTANCE_ID) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
     auto state = stateCell_.get_locked();
@@ -331,7 +332,7 @@ private:
      * reverse order in which they are created to ensure we don't destroy a dependency before its
      * dependent(s).
      */
-    std::vector<MapKey> instantiationList_;
+    std::vector<TypeMap::MapKey> instantiationList_;
 
     /**
      * Functions used to create new instances of types
