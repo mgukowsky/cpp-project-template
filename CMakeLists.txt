@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
-include(GetCPM)
 
 option(MYPROJ_BUILD_TESTS "Build test executables" ON)
 
@@ -18,41 +17,12 @@ add_executable(${PROJECT_NAME})
 include(ConfigureTarget)
 configure_target(${PROJECT_NAME})
 
-find_package(Threads REQUIRED)
-
-cpmaddpackage(
-  NAME
-  spdlog
-  GITHUB_REPOSITORY
-  gabime/spdlog
-  GIT_TAG
-  v1.16.0
-  VERSION
-  v1.16.0
-  GIT_PROGRESS
-  TRUE
-)
-
-cpmaddpackage(
-  NAME
-  glfw
-  GITHUB_REPOSITORY
-  glfw/glfw
-  GIT_TAG
-  3.4
-  VERSION
-  3.4
-  GIT_PROGRESS
-  TRUE
-  OPTIONS
-    "GLFW_BUILD_DOCS OFF"
-    "GLFW_BUILD_TESTS OFF"
-    "GLFW_BUILD_EXAMPLES OFF"
-)
+include(Deps)
 
 target_link_libraries(${PROJECT_NAME}
   PUBLIC
     ${CMAKE_DL_LIBS}
+    concurrentqueue
     spdlog::spdlog
     Threads::Threads
     glfw

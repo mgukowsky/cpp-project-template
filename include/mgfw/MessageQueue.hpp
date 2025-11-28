@@ -1,12 +1,20 @@
 #pragma once
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
+#include "concurrentqueue.h"
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 #include "mgfw/ILogger.hpp"
 #include "mgfw/types.hpp"
 
 #include <cassert>
 #include <concepts>
 #include <format>
-#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -14,7 +22,7 @@
 namespace mgfw {
 
 template<typename T>
-concept MessageType = std::copyable<T>;
+concept MessageType = std::is_default_constructible_v<T> && (std::movable<T> || std::copyable<T>);
 
 template<typename Fn_t, typename T>
 concept MessageDrainCallback =
@@ -22,15 +30,11 @@ concept MessageDrainCallback =
 
 /**
  * Simple message queue.
- *
- * *NOT* threadsafe; insertions are included to enforce that this MQ is only used on a single
- * thread.
  */
 template<MessageType T>
 class MessageQueue {
 public:
-  MessageQueue(ILogger &logger, const U64 id)
-    : logger_(logger), id_(id), tid_(std::this_thread::get_id()) { }
+  MessageQueue(ILogger &logger, const U64 id) : logger_(logger), id_(id) { }
 
   MessageQueue(const MessageQueue &)            = delete;
   MessageQueue &operator=(const MessageQueue &) = delete;
@@ -38,55 +42,53 @@ public:
   MessageQueue &operator=(MessageQueue &&)      = default;
 
   ~MessageQueue() {
-    if(!messages_.empty()) {
-      logger_.warn(std::format("MessageQueue {} destroyed with {} unprocessed message(s) remaining",
-                               id_,
-                               messages_.size()));
+    if(const auto approxSize = messages_.size_approx(); approxSize > 0) {
+      logger_.warn(std::format(
+        "MessageQueue {} destroyed with approximately {} unprocessed message(s) remaining",
+        id_,
+        approxSize));
     }
   }
 
   /**
    * Enqueue a message
    */
-  void enqueue(const T &message) {
-    assert(std::this_thread::get_id() == tid_);
-    messages_.push_back(message);
-  }
+  void enqueue(const T &message) { messages_.enqueue(message); }
 
-  void enqueue(const T &&message) {
-    assert(std::this_thread::get_id() == tid_);
-    messages_.push_back(std::move(message));
+  void enqueue(T &&message) { messages_.enqueue(std::move(message)); }
+
+  // No need to write an rvalue version since we wouldn't be moving the vector itself; rvalue refs
+  // will simply bind to the const ref argument and live until this function ends.
+  void enqueue_bulk(const std::vector<T> &messages) {
+    messages_.enqueue_bulk(messages.begin(), messages.size());
   }
 
   /**
-   * Enqueue a message by constructing it in place
+   * Enqueue a message by constructing it in place(ish)
    */
   template<typename... Args>
   void emplace(Args &&...args) {
-    assert(std::this_thread::get_id() == tid_);
-    messages_.emplace_back(std::forward<Args>(args)...);
+    messages_.enqueue(T{std::forward<Args>(args)...});
   }
 
   /**
-   * Invoke a callback on each element in the queue, then empty the queue
+   * Invoke a callback on each element pulled from the queue, until the queue is empty
    */
   // NOLINTBEGIN(cppcoreguidelines-missing-std-forward)
   template<MessageDrainCallback<T> Callback_t>
   void drain(Callback_t &&callback) {
-    assert(std::this_thread::get_id() == tid_);
-    for(const auto &msg : messages_) {
+    T msg;
+    while(messages_.try_dequeue(msg)) {
       callback(msg);
     }
-    messages_.clear();
   }
 
   // NOLINTEND(cppcoreguidelines-missing-std-forward)
 
 private:
-  std::vector<T>  messages_;
-  ILogger        &logger_;
-  const U64       id_;
-  std::thread::id tid_;
+  moodycamel::ConcurrentQueue<T> messages_;
+  ILogger                       &logger_;
+  const U64                      id_;
 };
 
 }  // namespace mgfw

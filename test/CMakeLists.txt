@@ -41,7 +41,9 @@ function(add_unit_test TESTNAME)
   # )
 
   target_include_directories(${TESTNAME} PUBLIC ${PROJECT_SOURCE_DIR}/test/include)
-  target_link_libraries(${TESTNAME} gtest gmock gtest_main)
+
+  # TODO: this should really use a mock rather than the real concurrentqueue
+  target_link_libraries(${TESTNAME} concurrentqueue gtest gmock gtest_main)
 
   target_sources(
     ${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/test/unit/${TESTNAME}_test.cpp
@@ -61,7 +63,7 @@ endfunction()
 #   add_unit_test(smoke)
 #   add_unit_test(gb_Bus ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
 #   add_unit_test(gb_CPU ${PROJECT_SOURCE_DIR}/src/gb/CPU.cpp
-              # ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
+# ${PROJECT_SOURCE_DIR}/src/gb/Bus.cpp)
 
 add_unit_test(CVar)
 add_unit_test(defer)
