@@ -67,6 +67,7 @@ public:
    * Enqueue a message by constructing it in place(ish)
    */
   template<typename... Args>
+  requires std::constructible_from<T, Args...>
   void emplace(Args &&...args) {
     messages_.enqueue(T{std::forward<Args>(args)...});
   }

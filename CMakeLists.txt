@@ -12,14 +12,20 @@ project(
 message(STATUS "Staring CMake with " ${CMAKE_CXX_COMPILER_ID} " on "
                ${CMAKE_SYSTEM_NAME})
 
-add_executable(${PROJECT_NAME})
-
-include(ConfigureTarget)
-configure_target(${PROJECT_NAME})
-
 include(Deps)
 
-target_link_libraries(${PROJECT_NAME}
+set(MYPROJ_LIBNAME "${PROJECT_NAME}_lib" CACHE INTERNAL "Project library")
+set(MYPROJ_EXENAME "${PROJECT_NAME}" CACHE INTERNAL "The main executable")
+
+add_library(${MYPROJ_LIBNAME} STATIC)
+
+include(ConfigureTarget)
+configure_target(${MYPROJ_LIBNAME})
+
+include(SourceFileManifest)
+target_sources(${MYPROJ_LIBNAME} PRIVATE ${MYPROJ_LIB_SOURCE_MANIFEST})
+
+target_link_libraries(${MYPROJ_LIBNAME}
   PUBLIC
     ${CMAKE_DL_LIBS}
     concurrentqueue
@@ -28,10 +34,15 @@ target_link_libraries(${PROJECT_NAME}
     glfw
 )
 
-include(SourceFileManifest)
-target_sources(${PROJECT_NAME} PRIVATE ${MYPROJ_SOURCE_FILE_MANIFEST})
+add_executable(${MYPROJ_EXENAME})
+configure_target(${MYPROJ_EXENAME})
+target_sources(${MYPROJ_EXENAME} PRIVATE ${MYPROJ_EXE_SOURCE_MANIFEST})
+target_link_libraries(${MYPROJ_EXENAME}
+  PUBLIC
+    ${MYPROJ_LIBNAME}
+)
 
-if(MYPROJ_BUILD_TESTS)
+if(${MYPROJ_BUILD_TESTS})
   include(CTest)
   enable_testing()
   add_subdirectory("test")

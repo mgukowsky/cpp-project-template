@@ -7,6 +7,7 @@
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <unordered_map>
 #include <utility>
@@ -64,14 +65,14 @@ private:
  */
 class TypeMap {
 public:
-  using InstanceId_t = mgfw::S32;
+  using InstanceId_t = mgfw::U64;
 
   /**
    * We use -1 as the default, since clients will want to use `enum`/`enum class` as instance IDs,
    * and since the first value of the enum is 0 by default, we want to distinguish between the
    * default instance and the instance corresponding to that first value in the enum.
    */
-  static constexpr InstanceId_t DEFAULT_INSTANCE_ID = -1;
+  static constexpr InstanceId_t DEFAULT_INSTANCE_ID = std::numeric_limits<U64>::max();
 
   // Could also just use a tuple; this is a hair more descriptive
   struct MapKey {

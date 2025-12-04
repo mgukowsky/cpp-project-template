@@ -1,18 +1,10 @@
-cpmaddpackage(
-  NAME
-  googletest
-  GITHUB_REPOSITORY
-  google/googletest
-  GIT_TAG
-  v1.14.0
-  VERSION
-  v1.14.0
-  OPTIONS
-  "INSTALL_GTEST OFF"
-  "gtest_force_shared_crt")
-
 include(GoogleTest)
 
+# Define a unit test, designed to test a single component in isolation.
+
+# Each cpp file is tested in a separate executable that should _ONLY_
+# consist of that file and mocked dependencies.
+#
 # Use to add tests TESTNAME must have a corresponding ${TESTNAME}_test.cpp, in
 # addition to any other source files. From
 # https://cliutils.gitlab.io/modern-cmake/chapters/testing/googletest.html
@@ -75,3 +67,5 @@ add_unit_test(SyncCell)
 add_unit_test(TypeHash)
 add_unit_test(TypeMap)
 add_unit_test(TypeString)
+
+add_subdirectory("integration")

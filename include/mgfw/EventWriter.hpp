@@ -2,6 +2,8 @@
 
 #include "mgfw/MessageQueue.hpp"
 
+#include <concepts>
+
 namespace mgfw {
 
 /**
@@ -22,7 +24,10 @@ public:
 
   void write(const T &&message) { queue_.enqueue(std::move(message)); }
 
+  void write_bulk(const std::vector<T> &messages) { queue_.enqueue_bulk(messages); }
+
   template<typename... Args>
+  requires std::constructible_from<T, Args...>
   void emplace(Args &&...args) {
     queue_.emplace(std::forward<Args>(args)...);
   }

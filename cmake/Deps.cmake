@@ -45,3 +45,17 @@ cpmaddpackage(
   TRUE
 )
 
+if(${MYPROJ_BUILD_TESTS})
+  cpmaddpackage(
+    NAME
+    googletest
+    GITHUB_REPOSITORY
+    google/googletest
+    GIT_TAG
+    v1.14.0
+    VERSION
+    v1.14.0
+    OPTIONS
+    "INSTALL_GTEST OFF"
+    "gtest_force_shared_crt")
+endif()
