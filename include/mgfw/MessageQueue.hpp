@@ -75,16 +75,13 @@ public:
   /**
    * Invoke a callback on each element pulled from the queue, until the queue is empty
    */
-  // NOLINTBEGIN(cppcoreguidelines-missing-std-forward)
   template<MessageDrainCallback<T> Callback_t>
-  void drain(Callback_t &&callback) {
+  void drain(const Callback_t &callback) {
     T msg;
     while(messages_.try_dequeue(msg)) {
       callback(msg);
     }
   }
-
-  // NOLINTEND(cppcoreguidelines-missing-std-forward)
 
 private:
   moodycamel::ConcurrentQueue<T> messages_;

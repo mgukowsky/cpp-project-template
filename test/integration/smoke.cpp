@@ -21,12 +21,12 @@ namespace {
 
 template<typename T>
 void add_mq_recipe(Injector &inj) {
-  inj.add_recipe<EventReader<T>>([](Injector &inj, const TypeMap::InstanceId_t id) {
-    auto &hive = inj.get<MQHive>();
+  inj.add_recipe<EventReader<T>>([](Injector &injCapture, const TypeMap::InstanceId_t id) {
+    auto &hive = injCapture.get<MQHive>();
     return hive.get_reader<T>(id);
   });
-  inj.add_recipe<EventWriter<T>>([](Injector &inj, const TypeMap::InstanceId_t id) {
-    auto &hive = inj.get<MQHive>();
+  inj.add_recipe<EventWriter<T>>([](Injector &injCapture, const TypeMap::InstanceId_t id) {
+    auto &hive = injCapture.get<MQHive>();
     return hive.get_writer<T>(id);
   });
 }

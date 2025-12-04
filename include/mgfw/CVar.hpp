@@ -34,7 +34,7 @@ public:
   using CVarCallback_t = std::function<void(const T &prevVal, const T &newVal)>;
 
   // Template deduction gets funky if specify initialVal as a reference/rvlaue reference...
-  CVar(std::string &&name, T initialVal, std::string &&desc = "")
+  CVar(std::string name, T initialVal, std::string desc = "")
     : val_{to_shared_if_needed<T>(std::move(initialVal))},
       name_(std::move(name)),
       desc_(std::move(desc)) { }
@@ -73,6 +73,8 @@ public:
       val_.store(val, std::memory_order::release);
     }
 
+    // N.B. that we don't pass in references to val_ here in order to avoid races (e.g. set() is
+    // called again from another thread while these callbacks are still being invoked)
     if(prev != val) {
       for(const auto &callback : *syncState) {
         callback(prev, val);

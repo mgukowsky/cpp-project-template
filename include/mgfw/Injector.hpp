@@ -95,12 +95,10 @@ public:
     add_recipe<T>(recipe);
   }
 
-  // We're using a universal reference but intentionally not using std::forward, since we want to
-  // copy the recipe into the lambda that will be used later
-  // NOLINTBEGIN
   template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
   requires std::is_invocable_r_v<T, RecipeFn_t, Injector &, TypeMap::InstanceId_t>
-  void add_recipe(RecipeFn_t &&recipe) {
+  // could use a &, but we would need to copy it in the lambda closure later anyway
+  void add_recipe(RecipeFn_t recipe) {
     constexpr auto hsh = mgfw::TypeHash<T>;
 
     auto state = stateCell_.get_locked();
@@ -115,12 +113,11 @@ public:
       hsh,
       std::make_pair(
         RecipeType_t::CONCRETE,
-        std::make_any<Recipe_t<T>>([recipe](Injector &inj, const TypeMap::InstanceId_t instanceId) {
-          return recipe(inj, instanceId);
-        })));
+        std::make_any<Recipe_t<T>>(
+          [recipeCopy = std::move(recipe)](Injector &inj, const TypeMap::InstanceId_t instanceId) {
+            return recipeCopy(inj, instanceId);
+          })));
   }
-
-  // NOLINTEND
 
   template<typename RawImpl_t,
            typename RawIface_t,
