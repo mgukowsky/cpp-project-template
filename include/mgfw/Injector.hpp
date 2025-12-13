@@ -23,7 +23,6 @@ template<typename T>
 concept isInjectorToken = requires(T t) { T::MGFW_THIS_IS_THE_INSTANCE_TAG_; };
 
 // SFINAE needed to get either the type an InjectorToken refers to, or just the type's identity.
-// Needed to conditionally determine the return type of certain functions.
 template<typename T, typename = void>
 struct get_token_type {
   using the_t = T;
@@ -31,7 +30,7 @@ struct get_token_type {
 
 template<typename T>
 struct get_token_type<T, std::void_t<decltype(T::MGFW_THIS_IS_THE_INSTANCE_TAG_)>> {
-  using the_t = T::Type_t;
+  using the_t = std::add_lvalue_reference_t<typename T::Type_t>;
 };
 
 class Injector {
@@ -85,9 +84,9 @@ public:
   void add_ctor_recipe() {
     // Can't do this in the template declaration, so we have to do it here
     using T = InjType_t<Raw_t>;
-    // static_assert(std::constructible_from<T, Args...>,
-    //               "Injector::add_ctor_recipe<T, ...Ts> will only accept Ts if T has a constructor
-    //               " "that accepts the arguments (Ts...)");
+    static_assert(std::constructible_from<T, typename get_token_type<Args>::the_t...>,
+                  "Injector::add_ctor_recipe<T, ...Ts> will only accept Ts if T has a constructor"
+                  "that accepts the arguments (Ts...)");
 
     auto recipe = [](Injector &injector, [[maybe_unused]] const TypeMap::InstanceId_t) {
       return T(injector.ctor_arg_dispatcher_<Args>(injector)...);
@@ -252,7 +251,7 @@ private:
     typename Raw_t,
     typename T = std::conditional_t<std::is_lvalue_reference_v<Raw_t>, Raw_t, InjType_t<Raw_t>>>
   std::conditional_t<isInjectorToken<T>,
-                     std::add_lvalue_reference_t<typename get_token_type<T>::the_t>,
+                     typename get_token_type<T>::the_t,
                      std::conditional_t<std::is_pointer_v<Raw_t>, Raw_t, T>>
   ctor_arg_dispatcher_(Injector &injector) {
     if constexpr(isInjectorToken<T>) {
