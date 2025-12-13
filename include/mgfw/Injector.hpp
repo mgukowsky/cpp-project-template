@@ -33,6 +33,9 @@ struct get_token_type<T, std::void_t<decltype(T::MGFW_THIS_IS_THE_INSTANCE_TAG_)
   using the_t = std::add_lvalue_reference_t<typename T::Type_t>;
 };
 
+template<typename T>
+using unwrap_token_t = get_token_type<T>::the_t;
+
 class Injector {
 public:
   // Utility class to indicate that a specific instance of a dependency is requested
@@ -84,7 +87,7 @@ public:
   void add_ctor_recipe() {
     // Can't do this in the template declaration, so we have to do it here
     using T = InjType_t<Raw_t>;
-    static_assert(std::constructible_from<T, typename get_token_type<Args>::the_t...>,
+    static_assert(std::constructible_from<T, unwrap_token_t<Args>...>,
                   "Injector::add_ctor_recipe<T, ...Ts> will only accept Ts if T has a constructor"
                   "that accepts the arguments (Ts...)");
 
@@ -251,7 +254,7 @@ private:
     typename Raw_t,
     typename T = std::conditional_t<std::is_lvalue_reference_v<Raw_t>, Raw_t, InjType_t<Raw_t>>>
   std::conditional_t<isInjectorToken<T>,
-                     typename get_token_type<T>::the_t,
+                     unwrap_token_t<T>,
                      std::conditional_t<std::is_pointer_v<Raw_t>, Raw_t, T>>
   ctor_arg_dispatcher_(Injector &injector) {
     if constexpr(isInjectorToken<T>) {
