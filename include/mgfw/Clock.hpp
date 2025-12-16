@@ -6,6 +6,8 @@ namespace mgfw {
 
 class Clock : public IClock {
 public:
+  Clock() = default;
+
   ~Clock() override = default;
 
   Clock(const Clock &)            = default;
