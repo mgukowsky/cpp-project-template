@@ -39,16 +39,24 @@ class Sender {
 public:
   explicit Sender(EventWriter<Msg> writer) : writer_(std::move(writer)) { }
 
+  void send_it() { writer_.write_bulk({{"foo"}, {"bar"}, {"baz"}}); }
+
 private:
   EventWriter<Msg> writer_;
 };
 
 class Receiver {
 public:
-  explicit Receiver(EventReader<Msg> receiver) : receiver_(std::move(receiver)) { }
+  explicit Receiver(EventReader<Msg> receiver, std::vector<std::string> &v)
+    : receiver_(std::move(receiver)), v_(v) { }
+
+  void get_it() {
+    receiver_.drain([this](const Msg &msg) { v_.emplace_back(msg.s); });
+  }
 
 private:
-  EventReader<Msg> receiver_;
+  EventReader<Msg>          receiver_;
+  std::vector<std::string> &v_;
 };
 
 }  // namespace
@@ -60,10 +68,16 @@ TEST(Integration, bulkMsgSend) {
 
   add_mq_recipe<Msg>(inj);
   inj.add_ctor_recipe<Sender, EventWriter<Msg>>();
-  inj.add_ctor_recipe<Receiver, EventReader<Msg>>();
+  inj.add_ctor_recipe<Receiver, EventReader<Msg>, std::vector<std::string> &>();
 
-  [[maybe_unused]] auto &sender   = inj.get<Sender>();
-  [[maybe_unused]] auto &receiver = inj.get<Receiver>();
+  auto &sender   = inj.get<Sender>();
+  auto &receiver = inj.get<Receiver>();
 
-  ASSERT_TRUE(true);
+  sender.send_it();
+  receiver.get_it();
+
+  const auto &v = inj.get<std::vector<std::string>>();
+  EXPECT_EQ("foo", v[0]);
+  EXPECT_EQ("bar", v[1]);
+  EXPECT_EQ("baz", v[2]);
 }

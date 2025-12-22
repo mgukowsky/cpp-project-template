@@ -12,5 +12,5 @@ set(MYPROJ_EXE_SOURCE_MANIFEST
 
 # Relative to test/integration
 set(MYPROJ_INTEGRATION_SOURCE_MANIFEST
-  smoke.cpp
+  bulkmsg.cpp
 )
