@@ -595,3 +595,86 @@ TEST_F(Injector_test, bind_impl_with_instanceIds) {
   EXPECT_NE(&defrefderived, &ref0derived);
   EXPECT_EQ(&ref0derived, &ref0baseA);
 }
+
+TEST_F(Injector_test, has_instance) {
+  class DefaultCtorClass { };
+
+  Injector inj;
+
+  EXPECT_FALSE(inj.has_instance<DefaultCtorClass>())
+    << "has_instance should return false before any instance is created";
+
+  [[maybe_unused]] const auto &ref = inj.get<DefaultCtorClass>();
+
+  EXPECT_TRUE(inj.has_instance<DefaultCtorClass>())
+    << "has_instance should return true after get<T>() creates a cached instance";
+
+  // create() does NOT cache, so has_instance should not be affected
+  [[maybe_unused]] const auto val = inj.create<DefaultCtorClass>();
+  EXPECT_TRUE(inj.has_instance<DefaultCtorClass>())
+    << "create() should not affect the result of has_instance";
+
+  // Instance IDs are independent
+  enum class IDs : mgfw::U8 { A, B };
+
+  EXPECT_FALSE(inj.has_instance<DefaultCtorClass>(std::to_underlying(IDs::A)))
+    << "has_instance should return false for a named instance before it is created";
+
+  [[maybe_unused]] const auto &aref = inj.get<DefaultCtorClass>(std::to_underlying(IDs::A));
+
+  EXPECT_TRUE(inj.has_instance<DefaultCtorClass>(std::to_underlying(IDs::A)))
+    << "has_instance should return true for a named instance after it is created";
+  EXPECT_FALSE(inj.has_instance<DefaultCtorClass>(std::to_underlying(IDs::B)))
+    << "has_instance for a different ID should still return false";
+}
+
+TEST_F(Injector_test, override_recipe) {
+  Injector inj;
+
+  constexpr int FIRST_MAGIC  = 42;
+  constexpr int SECOND_MAGIC = 99;
+
+  inj.add_recipe<int>([&](Injector &, const TypeMap::InstanceId_t) { return FIRST_MAGIC; });
+
+  // override_recipe must not throw even when a recipe already exists
+  EXPECT_NO_THROW(inj.override_recipe<int>(
+    [&](Injector &, const TypeMap::InstanceId_t) { return SECOND_MAGIC; }))
+    << "override_recipe should not throw when replacing an existing recipe";
+
+  // override_recipe must not throw when no prior recipe exists either
+  EXPECT_NO_THROW(
+    inj.override_recipe<double>([&](Injector &, const TypeMap::InstanceId_t) { return 3.14; }))
+    << "override_recipe should not throw when adding a recipe for the first time";
+
+  const int &cached = inj.get<int>();
+  EXPECT_EQ(SECOND_MAGIC, cached)
+    << "get<T>() should use the recipe installed by override_recipe";
+
+  // Calling create() also goes through the recipe
+  const int fresh = inj.create<int>();
+  EXPECT_EQ(SECOND_MAGIC, fresh)
+    << "create<T>() should use the recipe installed by override_recipe";
+}
+
+TEST_F(Injector_test, override_ctor_recipe) {
+  Injector inj;
+
+  struct Klass {
+    explicit Klass(DepA &a) : a_(a) { }
+
+    DepA &a_;
+  };
+
+  inj.add_ctor_recipe<Klass, DepA &>();
+
+  // Overriding with the same ctor recipe should not throw.
+  // N.B. we must hoist the call into a lambda variable first because the comma in the template
+  // argument list would otherwise be misinterpreted as a second macro argument.
+  auto doOverride = [&] { inj.override_ctor_recipe<Klass, DepA &>(); };
+  EXPECT_NO_THROW(doOverride())
+    << "override_ctor_recipe should not throw when replacing an existing ctor recipe";
+
+  [[maybe_unused]] const auto &k = inj.get<Klass>();
+  EXPECT_EQ(1, DepA::instanceCounter)
+    << "override_ctor_recipe should produce a fully functional recipe";
+}
