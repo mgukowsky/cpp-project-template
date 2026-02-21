@@ -678,3 +678,231 @@ TEST_F(Injector_test, override_ctor_recipe) {
   EXPECT_EQ(1, DepA::instanceCounter)
     << "override_ctor_recipe should produce a fully functional recipe";
 }
+
+// ---------------------------------------------------------------------------
+// Duplicate-registration error cases
+// ---------------------------------------------------------------------------
+
+TEST_F(Injector_test, throw_on_duplicate_add_recipe) {
+  Injector inj;
+  inj.add_recipe<int>([](Injector &, const TypeMap::InstanceId_t) { return 1; });
+
+  EXPECT_THROW(inj.add_recipe<int>([](Injector &, const TypeMap::InstanceId_t) { return 2; }),
+               std::runtime_error)
+    << "add_recipe should throw when called a second time for the same type";
+}
+
+TEST_F(Injector_test, throw_on_duplicate_add_ctor_recipe) {
+  Injector inj;
+  inj.add_ctor_recipe<DepA>();
+
+  EXPECT_THROW(inj.add_ctor_recipe<DepA>(), std::runtime_error)
+    << "add_ctor_recipe should throw when called a second time for the same type";
+}
+
+TEST_F(Injector_test, throw_on_duplicate_bind_impl) {
+  class Base {
+  public:
+    virtual ~Base() = default;
+  };
+
+  class Derived : public Base { };
+
+  Injector inj;
+
+  // N.B. wrap in a lambda to avoid the preprocessor misinterpreting the comma in <Derived, Base>
+  // as a second macro argument.
+  auto doFirstBind  = [&] { inj.bind_impl<Derived, Base>(); };
+  auto doSecondBind = [&] { inj.bind_impl<Derived, Base>(); };
+
+  doFirstBind();
+  EXPECT_THROW(doSecondBind(), std::runtime_error)
+    << "bind_impl should throw when called a second time for the same interface";
+}
+
+TEST_F(Injector_test, bind_impl_throws_if_recipe_already_added) {
+  class Base {
+  public:
+    virtual ~Base()               = default;
+    Base()                        = default;
+    Base(const Base &)            = default;
+    Base(Base &&)                 = default;
+    Base &operator=(const Base &) = default;
+    Base &operator=(Base &&)      = default;
+  };
+
+  class Derived : public Base { };
+
+  Injector inj;
+  inj.add_recipe<Base>([](Injector &, const TypeMap::InstanceId_t) { return Base(); });
+
+  auto doBind = [&] { inj.bind_impl<Derived, Base>(); };
+  EXPECT_THROW(doBind(), std::runtime_error)
+    << "bind_impl should throw if add_recipe was already called for the same interface type";
+}
+
+// ---------------------------------------------------------------------------
+// Transitive dependency resolution
+// ---------------------------------------------------------------------------
+
+TEST_F(Injector_test, transitive_dependencies) {
+  // A -> B -> C; none of them are registered, so C is default-constructed first,
+  // then B, then A – all via ctor recipes.
+  struct C { };
+
+  struct B {
+    explicit B(C &c) : c_(c) { }
+
+    C &c_;
+  };
+
+  struct A {
+    explicit A(B &b) : b_(b) { }
+
+    B &b_;
+  };
+
+  Injector inj;
+  inj.add_ctor_recipe<A, B &>();
+  inj.add_ctor_recipe<B, C &>();
+
+  auto &a = inj.get<A>();
+  auto &b = inj.get<B>();
+  auto &c = inj.get<C>();
+
+  EXPECT_EQ(&a.b_, &b)
+    << "A should hold a reference to the singleton B resolved by the injector";
+  EXPECT_EQ(&b.c_, &c)
+    << "B should hold a reference to the singleton C resolved by the injector";
+}
+
+// ---------------------------------------------------------------------------
+// instanceId is forwarded to the recipe function
+// ---------------------------------------------------------------------------
+
+TEST_F(Injector_test, recipe_receives_instance_id) {
+  Injector inj;
+
+  TypeMap::InstanceId_t capturedId = TypeMap::DEFAULT_INSTANCE_ID;
+
+  inj.add_recipe<int>([&](Injector &, const TypeMap::InstanceId_t id) {
+    capturedId = id;
+    return 42;
+  });
+
+  constexpr TypeMap::InstanceId_t CUSTOM_ID = 7;
+
+  [[maybe_unused]] auto &ref1 = inj.get<int>(CUSTOM_ID);
+  EXPECT_EQ(CUSTOM_ID, capturedId)
+    << "The recipe should receive the instanceId that was passed to get<T>(id)";
+
+  // A fresh instance ID -> the recipe is invoked again (no cache hit)
+  [[maybe_unused]] auto &ref2 = inj.get<int>();
+  EXPECT_EQ(TypeMap::DEFAULT_INSTANCE_ID, capturedId)
+    << "The recipe should receive DEFAULT_INSTANCE_ID when get<T>() is called without an id";
+}
+
+// ---------------------------------------------------------------------------
+// Move semantics
+// ---------------------------------------------------------------------------
+
+TEST_F(Injector_test, injector_move) {
+  class SimpleClass { };
+
+  const SimpleClass *rawPtr = nullptr;
+
+  Injector inj;
+  inj.add_recipe<int>([](Injector &, const TypeMap::InstanceId_t) { return 99; });
+  {
+    auto &ref = inj.get<SimpleClass>();
+    rawPtr    = &ref;
+  }
+
+  Injector inj2 = std::move(inj);
+
+  EXPECT_TRUE(inj2.has_instance<SimpleClass>())
+    << "Moved-to injector should see the instances that were cached before the move";
+
+  EXPECT_EQ(rawPtr, &inj2.get<SimpleClass>())
+    << "Moved-to injector should return the exact same object (same address)";
+
+  // Recipes are also transferred
+  EXPECT_EQ(99, inj2.create<int>())
+    << "Moved-to injector should still have the recipes that were registered before the move";
+}
+
+// ---------------------------------------------------------------------------
+// override_recipe interaction with the instance cache
+// ---------------------------------------------------------------------------
+
+TEST_F(Injector_test, override_recipe_does_not_affect_cached_instances) {
+  Injector inj;
+
+  constexpr int FIRST_MAGIC  = 42;
+  constexpr int SECOND_MAGIC = 99;
+
+  inj.add_recipe<int>([](Injector &, const TypeMap::InstanceId_t) { return FIRST_MAGIC; });
+
+  // Cache the instance produced by the first recipe
+  const int &cached = inj.get<int>();
+  EXPECT_EQ(FIRST_MAGIC, cached);
+
+  // Replace the recipe AFTER caching
+  inj.override_recipe<int>([](Injector &, const TypeMap::InstanceId_t) { return SECOND_MAGIC; });
+
+  // get<T>() must return the already-cached value – the new recipe is NOT re-invoked
+  const int &ref2 = inj.get<int>();
+  EXPECT_EQ(FIRST_MAGIC, ref2)
+    << "After override_recipe, get<T>() should still return the previously cached instance";
+  EXPECT_EQ(&cached, &ref2) << "The returned reference must be the same object";
+
+  // create<T>() bypasses the cache and should use the new recipe
+  EXPECT_EQ(SECOND_MAGIC, inj.create<int>())
+    << "After override_recipe, create<T>() should use the new recipe";
+}
+
+TEST_F(Injector_test, override_recipe_replaces_bind_impl_recipe) {
+  class Base {
+  public:
+    virtual std::string_view get_str() { return "BASE"; }
+
+    virtual ~Base()               = default;
+    Base()                        = default;
+    Base(const Base &)            = default;
+    Base(Base &&)                 = default;
+    Base &operator=(const Base &) = default;
+    Base &operator=(Base &&)      = default;
+  };
+
+  class Derived : public Base {
+  public:
+    std::string_view get_str() override { return "DERIVED"; }
+  };
+
+  Injector inj;
+  auto     doBind = [&] { inj.bind_impl<Derived, Base>(); };
+  doBind();
+
+  // Replace the INTERFACE recipe installed by bind_impl with a CONCRETE one
+  inj.override_recipe<Base>([](Injector &, const TypeMap::InstanceId_t) { return Base(); });
+
+  // Now get<Base>() should construct a plain Base object via the concrete recipe
+  auto &base = inj.get<Base>();
+  EXPECT_EQ("BASE", base.get_str())
+    << "After override_recipe replaces the bind_impl recipe, get<Base>() should use the "
+       "concrete recipe and return a Base, not a Derived";
+}
+
+// ---------------------------------------------------------------------------
+// has_instance edge cases
+// ---------------------------------------------------------------------------
+
+TEST_F(Injector_test, has_instance_returns_false_for_injector_self) {
+  Injector inj;
+
+  // get<Injector>() is a special identity case that returns *this without touching the TypeMap
+  [[maybe_unused]] auto &injRef = inj.get<Injector>();
+
+  EXPECT_FALSE(inj.has_instance<Injector>())
+    << "get<Injector>() bypasses the TypeMap, so has_instance<Injector>() should be false";
+}
