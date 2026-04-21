@@ -110,10 +110,9 @@ void Scheduler::run() {
       nextDeadline   = syncState->jobQueue_.begin()->deadline;
     }
 
-    syncState_.cv_wait_until(cv_, nextDeadline, [](const SyncState &syncState) {
+    syncState_.cv_wait_until(cv_, nextDeadline, [nextDeadline](const SyncState &syncState) {
       return !syncState.running_
-          || (!syncState.jobQueue_.empty()
-              && syncState.jobQueue_.begin()->deadline > syncState.clock_.now());
+          || (!syncState.jobQueue_.empty() && syncState.jobQueue_.begin()->deadline < nextDeadline);
     });
 
     // It's possible that a job earlier than `nextDeadline` was added while we were waiting, but
