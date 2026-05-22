@@ -10,9 +10,9 @@
 #include <any>
 #include <format>
 #include <functional>
-#include <map>
 #include <mutex>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -97,6 +97,25 @@ public:
     add_recipe<T>(recipe);
   }
 
+  /**
+   * Like add_ctor_recipe, but silently replaces any existing recipe instead of throwing.
+   * N.B. already-cached instances (created via a previous get<T>()) are NOT invalidated; use
+   * has_instance<T>() to confirm no instance is cached before calling this.
+   */
+  template<typename Raw_t, typename... Args>
+  requires(!std::is_abstract_v<Raw_t>)
+  void override_ctor_recipe() {
+    using T = InjType_t<Raw_t>;
+    static_assert(std::constructible_from<T, unwrap_token_t<Args>...>,
+                  "Injector::override_ctor_recipe<T, ...Ts> will only accept Ts if T has a "
+                  "constructor that accepts the arguments (Ts...)");
+
+    auto recipe = [](Injector &injector, [[maybe_unused]] const TypeMap::InstanceId_t) {
+      return T(injector.ctor_arg_dispatcher_<Args>(injector)...);
+    };
+    override_recipe<T>(std::move(recipe));
+  }
+
   template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
   requires std::is_invocable_r_v<T, RecipeFn_t, Injector &, TypeMap::InstanceId_t>
   // could use a &, but we would need to copy it in the lambda closure later anyway
@@ -110,6 +129,30 @@ public:
         std::format("Injector::add_recipe invoked for type {}, but a recipe was already added",
                     mgfw::TypeString<T>));
     }
+
+    state->recipeMap_.emplace(
+      hsh,
+      std::make_pair(
+        RecipeType_t::CONCRETE,
+        std::make_any<Recipe_t<T>>(
+          [recipeCopy = std::move(recipe)](Injector &inj, const TypeMap::InstanceId_t instanceId) {
+            return recipeCopy(inj, instanceId);
+          })));
+  }
+
+  /**
+   * Like add_recipe, but silently replaces any existing recipe instead of throwing.
+   * N.B. already-cached instances (created via a previous get<T>()) are NOT invalidated; use
+   * has_instance<T>() to confirm no instance is cached before calling this.
+   */
+  template<typename Raw_t, typename T = InjType_t<Raw_t>, typename RecipeFn_t>
+  requires std::is_invocable_r_v<T, RecipeFn_t, Injector &, TypeMap::InstanceId_t>
+  void override_recipe(RecipeFn_t recipe) {
+    constexpr auto hsh = mgfw::TypeHash<T>;
+
+    auto state = stateCell_.get_locked();
+
+    state->recipeMap_.erase(hsh);
 
     state->recipeMap_.emplace(
       hsh,
@@ -176,7 +219,7 @@ public:
         auto &[recipeType, recipeFn] = iter->second;
         if(recipeType != RecipeType_t::INTERFACE) {
           throw std::runtime_error(
-            std::format("Found recipe for type {}, but could use it because T is an abstract type "
+            std::format("Found recipe for type {}, but could not use it because T is an abstract type "
                         "and the recipe does not return a reference",
                         mgfw::TypeString<T>));
         }
@@ -210,6 +253,18 @@ public:
 
       return optionalRef.value();
     }
+  }
+
+  /**
+   * Returns true if an instance of type T with the given instanceId has already been created and
+   * is currently cached by this Injector (i.e. a previous call to get<T>() succeeded). Returns
+   * false for instances created via create<T>(), since those are never cached.
+   */
+  template<typename Raw_t, typename T = InjType_t<Raw_t>>
+  bool has_instance(const TypeMap::InstanceId_t instanceId = TypeMap::DEFAULT_INSTANCE_ID) {
+    constexpr auto hsh = mgfw::TypeHash<T>;
+    auto           state = stateCell_.get_locked();
+    return state->typeMap_.contains(hsh, instanceId);
   }
 
 private:
@@ -336,14 +391,14 @@ private:
     /**
      * Functions used to create new instances of types
      */
-    std::map<mgfw::Hash_t, std::pair<RecipeType_t, std::any>> recipeMap_;
+    std::unordered_map<mgfw::Hash_t, std::pair<RecipeType_t, std::any>> recipeMap_;
 
     /**
      * Tracks the types that are currently being injected; used to detect cycles. Though we use this
      * as a stack, we choose a set since we'll be searching it frequently and won't have duplicate
      * entries.
      */
-    std::set<mgfw::Hash_t> typeHashStack_;
+    std::unordered_set<mgfw::Hash_t> typeHashStack_;
 
     /**
      * Contains cached instances of given types
