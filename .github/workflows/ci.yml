@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    # Pin to 24.04 to guarantee CMake >= 3.28 (required by CMakePresets.json)
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - gcc_debug
+          - clang_debug
+
+    env:
+      CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install Python dependencies
+      run: pip install invoke
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          cmake \
+          ninja-build \
+          gcc \
+          g++ \
+          clang \
+          lld \
+          libx11-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libxi-dev \
+          libgl-dev
+
+    - name: Cache CPM packages
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CPM_SOURCE_CACHE }}
+        key: cpm-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
+        restore-keys: |
+          cpm-${{ runner.os }}-
+
+    - name: Build and test (${{ matrix.preset }})
+      run: invoke workflow --preset=${{ matrix.preset }}
+
+    - name: Upload build artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ matrix.preset }}
+        path: build/${{ matrix.preset }}/
+        retention-days: 7
